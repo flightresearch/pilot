@@ -1,0 +1,2990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Weather-Related Decision-Making Scenario</title>
+<style>
+/* ------------------------------------------------------------------ *
+ *  Weather-Related Decision-Making Scenario  (DV instrument)
+ *  Samu dissertation - GA VFR weather judgment task
+ *
+ *  ACCESSIBILITY TARGET: legible for a 75-year-old pilot on any device.
+ *   - body text never below 20px, most UI at 20-26px
+ *   - 56px touch targets (60px on coarse pointers)
+ *   - nothing scrolls sideways: every control set wraps
+ *   - canvas text scales in parallel via TS (see applyDevice)
+ * ------------------------------------------------------------------ */
+html{
+  /* 20px on a phone, the stated accessibility floor, and only a little above
+     it on a large screen. The old ramp (18px + 0.55vw capped at 26px) put
+     desktop body text at ~26px, which reads as inflated -- phone-sized type
+     stretched across a 1440px window.
+     375 -> 20 | 768 -> 20.1 | 1024 -> 20.4 | 1440 -> 20.9 | 1920 -> 21.5 */
+  font-size:clamp(20px, 19.2px + 0.12vw, 22px);
+  -webkit-text-size-adjust:100%;
+}
+:root{
+  --navy:#0f3557; --blue:#15599f; --blue2:#e4eef8;
+  --bg:#eaeef1; --card:#fff; --ink:#101c26; --ink2:#33454f; --muted:#4d5f6d;
+  --line:#c9d3dc; --line2:#9fb0bd;
+  --vfr:#00843d; --mvfr:#0b5ed7; --ifr:#c00000; --lifr:#a21caf;
+  --amber:#8f5606;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --tap:56px;
+  /* The header above promises body text never below 20px. --fs-xs and --fs-sm
+   resolved to 16.05 and 18.06 px at the phone root and were carrying the 0/50/
+   100 scale anchors, the airport and airspace line, and the mission
+   counterweight -- all scenario or response-scale content. Both are now 1rem;
+   nothing on this page renders scenario text below the stated floor. */
+--fs-xs:1rem; --fs-sm:1rem; --fs-md:1rem; --fs-lg:1.15rem; --fs-xl:1.45rem;
+  --pad:.65rem;
+}
+@media (pointer:coarse){ :root{ --tap:60px; } }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:var(--fs-md);line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,h4{margin:0;font-weight:700;letter-spacing:-.01em}
+.mono{font-family:var(--mono)}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+
+/* ---------------- header ---------------- */
+/* Scrolls away with the page rather than holding the top. On a small phone the
+   frozen bar was permanent furniture eating height that the chart needed, and
+   it carries nothing the participant refers back to mid-scroll. */
+#hdr{position:relative;z-index:50;background:var(--navy);color:#fff;
+  display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.45rem .6rem;
+  box-shadow:0 2px 10px rgba(0,0,0,.22)}
+#hdr .t{font-size:var(--fs-md);font-weight:700;line-height:1.15}
+#hdr .sp{flex:1}
+/* One status line, present at both stages, scenario-dependent content —
+   realism without making the layout itself a T1/T2 difference. */
+#strip{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:.3rem .5rem;margin-top:.35rem}
+#strip span{font-family:var(--mono);font-size:var(--fs-sm);font-weight:700;
+  background:rgba(255,255,255,.16);padding:.12em .5em;border-radius:6px;white-space:nowrap}
+#strip span.now{background:#fff;color:var(--navy)}
+.ageChip{font-family:var(--mono);font-size:var(--fs-xs);font-weight:700;color:var(--ink2);
+  background:#e8edf2;border:1px solid var(--line);padding:.1em .45em;border-radius:5px}
+#steps{display:flex;gap:.3rem}
+.step{font-size:var(--fs-xs);letter-spacing:.02em;padding:.25em .6em;border-radius:999px;
+  border:2px solid rgba(255,255,255,.35);opacity:.65;font-weight:600}
+.step.on{background:#fff;color:var(--navy);border-color:#fff;opacity:1;font-weight:700}
+
+/* ---------------- layout ---------------- */
+main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.card > h2{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;
+  font-size:var(--fs-md);font-weight:700;color:#fff;background:var(--navy);padding:.5rem .65rem}
+.card > h2 .sp{flex:1}
+.card > h2 .tag{font-size:var(--fs-xs);background:rgba(255,255,255,.18);color:#fff;
+  border-radius:6px;padding:.12em .5em;font-weight:600}
+.body{padding:var(--pad)}
+
+.canvwrap{position:relative;width:100%;background:#dfe5e9}
+.canvwrap canvas{display:block;width:100%;height:auto}
+
+/* ---------------- situation ---------------- */
+/* Two zones: a WARM mission band over COOL flight facts. The mission block
+   used amber, which on this page is weather-hazard language -- the social
+   reason for the trip must not be styled as a caution. */
+.ico{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#missionZone{background:#faf6f0;border:1px solid #ddd2c4;border-radius:10px;
+  padding:.6rem .65rem;margin-bottom:.55rem}
+.mHero{display:flex;align-items:center;gap:.65rem}
+.mDisc{flex:0 0 auto;width:4.4rem;height:4.4rem;border-radius:50%;background:#f0e6d8;
+  display:flex;align-items:center;justify-content:center}
+.mHero .ico.hero{width:3rem;height:3rem;color:#6b4a2f;stroke-width:2.2}
+/* The document states the motive and its cancellation in ONE sentence, giving
+   them equal weight. The page used to render the urgency clause at 23px beside
+   an 88px hero disc and its counterweight at 16px in the block's faintest
+   colour -- and #missionZone is deliberately on screen while perceived
+   pressure is rated. Dosing one half of the author's own sentence heavier than
+   the other manipulates a measured dependent variable typographically. Both
+   clauses now render at one tier. */
+.mL1{font-size:var(--fs-lg);font-weight:700;line-height:1.2;color:#3d2b1c}
+.mL2{font-size:var(--fs-md);color:#5b4a39;line-height:1.3;margin-top:.15rem}
+.mChips{display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));
+  gap:.4rem;margin-top:.55rem}
+.mChip{display:flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e3d8c9;
+  border-radius:9px;padding:.4rem .5rem}
+.mChip .ico{flex:0 0 auto;width:2.8rem;height:2.8rem;color:#6b4a2f}
+.mChip b{display:block;font-size:var(--fs-lg);font-weight:700;line-height:1.2;color:#3d2b1c}
+.mChip span{display:block;font-size:var(--fs-md);color:#5b4a39;line-height:1.3;margin-top:.15rem}
+
+/* ---- intro wizard: one FULL SCREEN at a time, explicit Next ---- */
+/* One scrolling column, not a fixed frame with a scrolling middle. The pinned
+   button strip cost a fifth of a 568 px screen and permanently hid whatever
+   sat under it; letting the whole panel scroll means the buttons arrive at the
+   end of the content, which is where a reader expects them. margin-top:auto on
+   .wzNav still parks them at the bottom whenever the panel is shorter than the
+   viewport, so tall screens look unchanged. */
+#gate:has(.wizard){padding:0}
+.gatecard.wizard{padding:0;display:flex;flex-direction:column;margin:0;
+  max-width:none;width:100%;min-height:100dvh;height:auto;
+  border-radius:0;overflow:visible}
+.wizard .wzBody{flex:0 0 auto;overflow:visible}
+.wzTop{padding:.7rem 1rem .25rem;flex:0 0 auto}
+.wzStep{font-size:var(--fs-sm);font-weight:700;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.wzTop h2{font-size:var(--fs-xl);margin-top:.15rem}
+.wzArt{background:#0e141a;margin:.7rem 0 0;border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);flex:0 0 auto}
+/* contain, not cover. On a wide desktop the wizard card is full width, so a
+   16:9 photo forced to cover a 42vh box had its top and bottom cropped away --
+   the aeroplane lost its tail and its undercarriage, on the one panel whose
+   job is to show the aeroplane. Letterboxing against the dark art panel shows
+   the whole subject at every width. */
+/* No max-height and no object-fit: at width:100% with height:auto the image
+   simply renders whole at its native ratio, with no crop and no dark bars.
+   A 42vh cap plus object-fit:cover used to take the tail and undercarriage off
+   the aeroplane on the one panel whose job is to show the aeroplane. */
+.wzImg{display:block;width:100%;height:auto;background:#0e141a}
+/* No viewport cap on the chart: its height is computed from how far apart the
+   airports land, and on a small screen that legitimately exceeds the screen.
+   The panel scrolls, so a tall chart is read by scrolling rather than squinting. */
+.wzCanvas{display:block;width:100%;height:auto}
+/* Warm hero for the mission panel. Deliberately abstract — concentric bands
+   echoing the ring motif, no cake/doves/hearts. A specific human face here
+   would add reaction variance that has nothing to do with the trait being
+   measured, so the emblem stays symbolic unless a real photo is supplied. */
+/* Sized against viewport height, not just rem: at a fixed 9.5rem the emblem
+   ate a 667px phone screen and pushed the body text and fact cards under the
+   nav buttons. */
+.wzEmblem{position:relative;display:flex;align-items:center;justify-content:center;
+  padding:clamp(.5rem,2.2vh,2rem) 0;overflow:hidden;
+  background:radial-gradient(circle at 50% 42%,#fffdf9 0%,#f7efe3 46%,#eadfcd 100%)}
+.wzHalo{position:absolute;width:min(20rem,52vh);height:min(20rem,52vh);border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.95) 0%,rgba(255,255,255,0) 62%)}
+/* faint concentric bands, like rings resting on cloth */
+.wzArc{position:absolute;width:min(15rem,38vh);height:min(15rem,38vh);border-radius:50%;
+  border:1px solid rgba(107,74,47,.16);
+  box-shadow:0 0 0 2.2rem rgba(107,74,47,.055), 0 0 0 4.6rem rgba(107,74,47,.035)}
+.ico.wzIco{position:relative;width:min(9.5rem,16vh);height:min(9.5rem,16vh);
+  color:#6b4a2f;stroke-width:2.1;filter:drop-shadow(0 3px 6px rgba(90,60,30,.22))}
+.wzEmblem::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(107,74,47,.35),transparent)}
+.wzBody{padding:.7rem 1rem .3rem;font-size:var(--fs-lg);line-height:1.4}
+.wzBody p{margin:0 0 .5rem}
+.wzLead{font-size:var(--fs-xl);font-weight:700;line-height:1.25;color:var(--navy)}
+.wzSub{font-size:var(--fs-md);color:var(--ink2)}
+.wzFacts{display:grid;gap:.5rem;margin-top:.3rem}
+.wzFact{display:flex;align-items:center;gap:.6rem;
+  background:linear-gradient(180deg,#fffdf9,#f7efe3);
+  border:1px solid #e0d3c0;border-radius:12px;padding:.5rem .6rem;
+  box-shadow:0 1px 2px rgba(107,74,47,.08)}
+.wzFact .ico{flex:0 0 auto;width:2.1rem;height:2.1rem;color:#6b4a2f;
+  background:#fff;border:1px solid #e6dbc9;border-radius:50%;padding:.3rem}
+.wzFact b{display:block;font-size:var(--fs-md);color:#3d2b1c;line-height:1.2}
+.wzFact span{display:block;font-size:var(--fs-sm);color:#6b5a49;line-height:1.25;margin-top:.1rem}
+.wzFacts{gap:.35rem}
+/* Tall viewports have room to spare once the cards are placed, so the hero
+   grows to take it rather than leaving a dead band above the buttons. */
+@media (min-height:840px){
+  .ico.wzIco{width:min(14rem,21vh);height:min(14rem,21vh)}
+  .wzEmblem{padding:clamp(1rem,3.6vh,2.6rem) 0}
+  .wzHalo{width:min(28rem,58vh);height:min(28rem,58vh)}
+  .wzArc{width:min(21rem,42vh);height:min(21rem,42vh)}
+}
+/* Short viewports (iPhone 8 and the like) shrink the decorative hero so that
+   BOTH fact cards clear the fold. "Nothing else is at stake" is the authored
+   counterweight to the social pressure — it must not sit behind a scroll. */
+@media (max-height:760px){
+  .ico.wzIco{width:min(9.5rem,12vh);height:min(9.5rem,12vh)}
+  .wzEmblem{padding:.2rem 0}
+  .wzBody{padding-top:.55rem;padding-bottom:0}
+  .wzHalo{width:min(20rem,34vh);height:min(20rem,34vh)}
+  .wzArc{width:min(15rem,25vh);height:min(15rem,25vh);box-shadow:0 0 0 1.4rem rgba(107,74,47,.055),0 0 0 3rem rgba(107,74,47,.035)}
+}
+/* Flight-detail tiles. Two columns of stacked icon-over-text squeezed both the
+   value and its qualifier into a third of a phone's width; laid out as rows the
+   same facts get the full measure, which is what lets the type grow. Two
+   columns return only when there is genuinely width for two. */
+/* min(20rem,100%) not 20rem: a bare 20rem track is 400px at the phone root
+   size and forces the row wider than a 375px screen. Nothing on this page
+   scrolls sideways. */
+.wzList{margin:.6rem 0 0;padding-left:1.2rem;font-size:var(--fs-md);line-height:1.4}
+.wzList li{margin-bottom:.4rem}
+.wzTiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(20rem,100%),1fr));
+  gap:.55rem;padding:.8rem;background:#f4f7f9}
+.wzTile{display:flex;align-items:center;gap:.75rem;background:#fff;
+  border:1px solid var(--line);border-radius:12px;padding:.7rem .8rem;
+  box-shadow:0 1px 2px rgba(16,28,38,.06)}
+.wzTile .ico{flex:0 0 auto;width:3.4rem;height:3.4rem;color:var(--navy);
+  background:#eef3f8;border-radius:12px;padding:.55rem;stroke-width:1.9}
+.wzTile .tx{min-width:0}
+.wzTile .lb{display:block;font-size:var(--fs-sm);font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.04em;line-height:1.2}
+.wzTile .vl{display:block;font-size:var(--fs-xl);font-weight:700;color:var(--navy);
+  line-height:1.2;margin-top:.1rem}
+.wzTile .sb{display:block;font-size:var(--fs-md);color:var(--ink2);line-height:1.3;
+  margin-top:.15rem}
+/* No fade above the buttons any more: nothing is clipped behind them now, and
+   a gradient over live text would only hide content that is genuinely there. */
+.wzNav{display:flex;gap:.5rem;padding:.55rem 1rem 1rem;margin-top:auto;
+  position:relative;background:#fff}
+.wzNav .btn{flex:1;min-height:3.4rem}
+.wzNav .btn.ghost{background:#fff;color:var(--navy);border:2px solid var(--line2);flex:0 0 34%}
+.wzNav .btn.ghost[disabled]{opacity:.4;cursor:default}
+#credits{padding:.6rem 1rem 1.2rem;font-size:var(--fs-xs);color:var(--muted);
+  text-align:center;line-height:1.4}
+
+#flightHdr{font-size:var(--fs-sm);font-weight:700;color:var(--muted);
+  border-top:2px solid var(--line2);padding-top:.45rem;margin-bottom:.4rem}
+/* min track must stay under ~7.8rem or an iPhone 8 drops to one column */
+#sitGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(7.4rem,1fr));
+  gap:.4rem;grid-auto-rows:1fr}
+.sitItem{margin:0;display:flex;flex-direction:column;align-items:center;text-align:center;
+  gap:.15rem;background:#f4f7f9;border:1px solid var(--line);border-radius:10px;
+  padding:.55rem .35rem}
+.sitItem .ico{width:2.9rem;height:2.9rem;color:var(--blue);margin-bottom:.15rem}
+.sitItem dd{margin:0;font-size:var(--fs-lg);line-height:1.15;font-weight:700;color:var(--ink)}
+.sitItem dt{font-size:var(--fs-sm);color:var(--muted);font-weight:600}
+.sitItem small{font-size:var(--fs-sm);color:var(--ink2);line-height:1.25}
+@media (min-width:1300px){ #sitGrid{grid-template-columns:repeat(6,1fr)} }
+
+/* ---------------- map ---------------- */
+/* Controls WRAP into a grid: a horizontally scrolling row hides options. */
+#mapTools{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.4rem;
+  padding:.5rem .6rem;border-bottom:1px solid var(--line);background:#f7f9fb}
+.chip{display:flex;align-items:center;justify-content:center;gap:.3rem;
+  min-height:var(--tap);padding:.3rem .6rem;border-radius:10px;border:2px solid var(--line2);
+  background:#fff;color:var(--ink2);font-size:var(--fs-sm);font-weight:600;cursor:pointer;
+  user-select:none;text-align:center;line-height:1.2}
+.chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+
+#timebar{background:#f7f9fb;border-top:1px solid var(--line);padding:.45rem .6rem}
+#timebar .lab{font-size:var(--fs-xs);color:var(--muted);margin-bottom:.3rem;font-weight:700}
+#timeBtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(7rem,1fr));gap:.35rem}
+.tbtn{min-height:var(--tap);border:2px solid var(--line2);background:#fff;border-radius:10px;
+  font-family:var(--mono);font-size:var(--fs-sm);font-weight:600;color:var(--ink2);cursor:pointer}
+.tbtn.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.tbtn.future{opacity:.4;cursor:not-allowed}
+
+#mapLegend{display:flex;flex-wrap:wrap;gap:.4rem .9rem;align-items:center;
+  padding:.5rem .6rem;border-top:1px solid var(--line);background:#f7f9fb;
+  font-size:var(--fs-sm);color:var(--ink2)}
+.legGroup{display:flex;align-items:center;gap:.3rem;flex-wrap:wrap}
+.catSw{display:inline-block;padding:.12em .5em;border-radius:5px;color:#fff;
+  font-size:var(--fs-xs);font-weight:700;font-family:var(--mono)}
+/* White on the VFR green measures 3.43:1 at this size (16px bold counts as
+   normal text, so AA wants 4.5:1). Black on the same green is 6.13:1, which
+   fixes the legend WITHOUT altering any category colour -- the VFR station
+   circles on the chart are painted from the same value and must not shift. */
+.catSw.onLight{color:#000}
+#dbzScale{display:flex;height:1rem;border:1px solid rgba(0,0,0,.2);border-radius:3px;overflow:hidden}
+#dbzScale i{width:1.05rem;height:100%}
+
+/* ---------------- weather cams ---------------- */
+/* 2x2 grid, never a scrolling strip */
+#siteTabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.4rem;
+  padding:.5rem .6rem;border-bottom:1px solid var(--line);background:#f7f9fb}
+.siteTab{min-height:var(--tap);display:flex;align-items:center;justify-content:center;gap:.4rem;
+  padding:.3rem .5rem;border:2px solid var(--line2);border-radius:10px;background:#fff;
+  cursor:pointer;font-size:var(--fs-md);font-weight:700;line-height:1.15;text-align:left}
+.siteTab.on{border-color:var(--navy);background:var(--navy);color:#fff}
+.siteTab .cd{width:1rem;height:1rem;border-radius:50%;flex:0 0 auto;border:2px solid rgba(255,255,255,.7)}
+.siteTab .sub{display:block;font-size:var(--fs-xs);opacity:.8;font-weight:500}
+
+#camGrid{display:grid;gap:.55rem;padding:var(--pad)}
+.camCard{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#0d1319}
+.camHead{display:flex;align-items:baseline;gap:.4rem;padding:.4rem .6rem;
+  background:#16212c;color:#e8eff5;font-size:var(--fs-sm)}
+.camHead b{font-size:var(--fs-md)}
+.camHead .sp{flex:1}
+.camHead .az{font-family:var(--mono);opacity:.8;font-size:var(--fs-xs)}
+.camPair{display:grid;grid-template-columns:1fr;gap:2px;background:#2a3744}
+.camShot{position:relative;background:#0b1116}
+/* Whole frame, always. height:auto at width:100% renders the image at its own
+   ratio, so nothing is cropped and nothing is letterboxed on any screen. The
+   solo view previously carried max-height:52vh with object-fit:cover, which
+   silently trimmed the top and bottom off the destination camera on tall
+   phones -- taking sky and foreground off the one frame a pilot reads for
+   cloud base and surface state. */
+.camShot canvas,.camShot img{display:block;width:100%;height:auto}
+.camCred{padding:.35rem .6rem;background:#111a22;color:#8fa0ae;font-size:var(--fs-xs);
+  border-top:1px solid #223040}
+.camShot .stamp{position:absolute;right:.3rem;bottom:.3rem;font-family:var(--mono);
+  font-size:var(--fs-xs);font-weight:700;color:#fff;background:rgba(0,0,0,.66);
+  padding:.12em .45em;border-radius:4px}
+.camShot .kind{position:absolute;left:.3rem;top:.3rem;font-size:var(--fs-xs);
+  color:#fff;background:rgba(0,0,0,.66);padding:.15em .55em;border-radius:4px;font-weight:700}
+.camShot.ref .kind{background:rgba(21,89,159,.92)}
+.lmk{position:absolute;transform:translate(-50%,0);pointer-events:none;text-align:center}
+.lmk .tick{width:2px;height:1.05rem;background:rgba(255,255,255,.92);margin:.1rem auto 0;
+  box-shadow:0 0 4px rgba(0,0,0,.95)}
+.lmk .txt{font-family:var(--mono);font-size:var(--fs-xs);font-weight:700;color:#fff;
+  white-space:nowrap;text-shadow:0 1px 3px #000,0 0 6px #000;line-height:1.2}
+.camNote{padding:.4rem .6rem;background:#111a22;color:#b3c3d0;font-size:var(--fs-sm);
+  border-top:1px solid #223040}
+#camHelp{padding:0 var(--pad) var(--pad);font-size:var(--fs-sm);color:var(--ink2);line-height:1.45}
+
+/* ---------------- briefing ---------------- */
+/* Section headings replace the old tab strip. */
+.briefH{font-size:var(--fs-lg);color:var(--navy);margin:.9rem 0 .45rem;
+  padding-bottom:.25rem;border-bottom:2px solid var(--line)}
+.briefH:first-child{margin-top:0}
+#briefBody{padding:var(--pad)}
+/* This is the section a pilot actually reads the numbers from, so it carries
+   the largest type on the page after the decision itself. Every size here is
+   a rem token: the old hardcoded 10.5/11/13/13.5px values ignored the root
+   scale entirely, so they stayed tiny while everything around them grew. */
+.obsCard{border:2px solid var(--line);border-radius:10px;margin-bottom:.6rem;overflow:hidden}
+/* Destination identity is carried by the word DESTINATION, not by a hue. The
+   card border, the tag, the chart ring and the cross-section label were all
+   purple, and the legend teaches magenta-purple as LIFR -- the worst category.
+   KBBB is MVFR at BOTH stages, so the colour asserted something the data does
+   not. The category palette already owns green, blue, red and magenta, leaving
+   no spare hue, so destination stops being colour-coded at all. */
+.obsCard.dest{border-color:var(--navy)}
+.obsHead{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;padding:.55rem .65rem;
+  background:#f2f5f8;border-bottom:1px solid var(--line)}
+.obsHead b{font-family:var(--mono);font-size:var(--fs-xl)}
+.obsHead .sp{flex:1}
+.destTag{font-size:var(--fs-xs);font-weight:700;letter-spacing:.04em;color:var(--navy)}
+.catBadge{font-family:var(--mono);font-size:var(--fs-xs);font-weight:700;color:#fff;
+  padding:.12em .55em;border-radius:5px}
+/* Wider columns: at this type size a 7.5rem track wrapped "220° 12G18" */
+.obsMain{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));
+  gap:.55rem .9rem;padding:.65rem}
+.obsMain .m dt{font-size:var(--fs-sm);color:var(--muted);font-weight:700}
+.obsMain .m dd{margin:0;font-size:var(--fs-xl);font-family:var(--mono);font-weight:700;
+  line-height:1.2}
+.obsMain .m dd.words{font-family:var(--sans);font-size:var(--fs-lg)}
+/* Neutral, not amber. Amber is this page's hazard colour, and the trend line
+   only ever appears on stations that changed -- which at T2 are exactly the
+   two that worsened. Colouring it as a caution would prime the direction. */
+.trend{font-size:var(--fs-md);color:var(--ink2);font-family:var(--mono);font-weight:700;
+  padding:0 .65rem .5rem;line-height:1.35}
+.rawRow{padding:.35rem .65rem;border-top:1px dashed var(--line);background:#fafcfd}
+.raw{font-family:var(--mono);font-size:var(--fs-md);line-height:1.55;color:#22323f;
+  white-space:pre-wrap;word-break:break-word;margin:.35rem 0 .2rem}
+.disc{border:0;background:none;color:var(--blue);font-size:var(--fs-md);cursor:pointer;
+  padding:.4rem 0;min-height:var(--tap);font-weight:700;text-decoration:underline}
+.advCard{border:2px solid var(--line);border-left:7px solid var(--amber);border-radius:9px;
+  padding:.65rem .75rem;margin-bottom:.5rem;background:#fffdf6}
+.advCard.fresh{border-left-color:var(--ifr);background:#fff6f6}
+.advCard h4{margin:0 0 .25rem;font-size:var(--fs-lg)}
+.advCard .txt{font-size:var(--fs-lg);line-height:1.45}
+.advCard .when{font-family:var(--mono);font-size:var(--fs-sm);color:var(--muted);margin-top:.3rem}
+/* TAF periods as stacked rows -- a table would force sideways scrolling */
+.tafRow{border:1px solid var(--line);border-radius:8px;padding:.55rem .65rem;margin-bottom:.5rem;
+  background:#fbfcfd}
+.tafRow .per{font-family:var(--mono);font-size:var(--fs-md);font-weight:700;color:var(--navy)}
+.tafRow .vals{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));
+  gap:.3rem .7rem;margin-top:.35rem}
+.tafRow .vals span{font-size:var(--fs-md);color:var(--muted)}
+.tafRow .vals b{font-family:var(--mono);font-weight:700;font-size:var(--fs-lg);color:var(--ink)}
+
+/* ---------------- decision ---------------- */
+#secDecide{border:3px solid var(--navy)}
+#rQ{font-size:var(--fs-lg);margin-bottom:.3rem;line-height:1.4;font-weight:600}
+#rNote{font-size:var(--fs-sm);color:var(--muted);margin-bottom:.7rem;line-height:1.35}
+.stepLbl{display:flex;align-items:center;gap:.45rem;font-size:var(--fs-md);font-weight:700;
+  color:var(--navy);margin:.2rem 0 .5rem}
+.stepLbl i{display:inline-flex;align-items:center;justify-content:center;font-style:normal;
+  width:1.7rem;height:1.7rem;border-radius:50%;background:var(--navy);color:#fff;
+  font-size:var(--fs-sm);flex:0 0 auto}
+.choices{display:grid;gap:.45rem}
+.choice{display:flex;align-items:center;gap:.6rem;min-height:var(--tap);
+  padding:.6rem .65rem;border:2px solid var(--line2);border-radius:10px;background:#fff;
+  cursor:pointer;font-size:var(--fs-md);line-height:1.3}
+.choice.sel{border-color:var(--navy);background:var(--blue2);font-weight:700;border-width:3px}
+.choice input{accent-color:var(--navy);width:1.5rem;height:1.5rem;flex:0 0 auto}
+.sub{display:grid;gap:.45rem;grid-template-columns:1fr;margin:.45rem 0 0 1.4rem}
+.slbox{background:#f4f7f9;border:2px solid var(--line);border-radius:10px;
+  padding:.65rem;margin:.9rem 0 .2rem}
+/* BOTH readouts, not just the first. #prVal was styled by nothing at all, so
+   the two 0-100 items rendered as visibly different controls: the likelihood
+   value appeared at 3rem mono navy centred, the pressure value at body size,
+   weight 400, left-aligned, and the two panels differed by 45px in height.
+   Two response scales that look unlike each other invite unlike use. */
+#slVal,#prVal{font-family:var(--mono);font-size:3rem;text-align:center;color:var(--navy);
+  line-height:1.05;font-weight:700}
+#slVal.empty,#prVal.empty{font-size:var(--fs-md);color:var(--muted);font-family:var(--sans);
+  padding:.9rem 0;font-weight:600}
+/* The track carries NO hue. It previously ran saturated green at "definitely
+   will not" to brick red at "definitely will", which told the participant
+   which pole of the dependent variable was the safe answer — the exact prime
+   this page suppresses everywhere else. Neutral groove, navy fill behind the
+   thumb, set from the value in onSlide(). No outline:none: the DV input keeps
+   the same focus ring as every other control (WCAG 2.4.7). */
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:.8rem;
+  border-radius:.4rem;background:var(--line);margin:.7rem 0 0}
+input[type=range]:focus-visible{outline:3px solid var(--blue);outline-offset:4px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:2.9rem;height:2.9rem;
+  border-radius:50%;background:#fff;border:6px solid var(--navy);cursor:grab;
+  box-shadow:0 2px 9px rgba(0,0,0,.4)}
+input[type=range]::-moz-range-thumb{width:2.9rem;height:2.9rem;border-radius:50%;
+  background:#fff;border:6px solid var(--navy);cursor:grab}
+/* Hidden until answered so the midpoint is not a default the participant is
+   nudged toward — but visible on focus, or a keyboard user is aiming blind. */
+input[type=range].untouched::-webkit-slider-thumb{opacity:0}
+input[type=range].untouched::-moz-range-thumb{opacity:0}
+input[type=range].untouched:focus-visible::-webkit-slider-thumb{opacity:.45}
+input[type=range].untouched:focus-visible::-moz-range-thumb{opacity:.45}
+.slbox input[type=range]{display:block;width:100%}
+/* Buttons below the track, not flanking it. Drag remains optional -- the
+   stepper is still the accessible path to both DVs for an unsteady hand. */
+.slBtns{display:flex;justify-content:space-between;margin-top:.55rem}
+.slStep{flex:0 0 auto;width:var(--tap);height:var(--tap);border-radius:50%;
+  border:2px solid var(--navy);background:#fff;color:var(--navy);
+  font-size:1.6rem;line-height:1;font-weight:700;cursor:pointer;padding:0}
+.slStep:active{background:var(--blue2)}
+/* The anchors sit directly beneath the track they define, each column taking an
+   equal share so the wording wraps inside its own third instead of overflowing.
+   These are quoted verbatim from the document and are the operational
+   definition of both 0-100 scales, so they have to line up with the values
+   they name. */
+.slends{display:flex;justify-content:space-between;gap:.4rem;font-size:var(--fs-md);
+  color:var(--muted);margin-top:.4rem;font-weight:600;line-height:1.2}
+.slends span{flex:1 1 0;min-width:0}
+.slends .mid{text-align:center}
+.slends .end{text-align:right}
+textarea#why{width:100%;min-height:6rem;resize:vertical;background:#fff;
+  border:2px solid var(--line2);border-radius:10px;padding:.55rem .65rem;
+  font-size:var(--fs-md);line-height:1.5;margin-top:.35rem}
+.cnt{font-size:var(--fs-sm);color:var(--muted);text-align:right}
+/* ---- version B additions ---- */
+/* Item 1 carries three anchors because the document defines a midpoint
+   ("50 = Equally likely"); item 3 carries two. The .slends rules live with the
+   other slider styles above -- a second copy here was overriding .mid back to
+   flex:0 0 auto and undoing the equal-column layout. */
+.trigLbl{display:block;font-size:var(--fs-lg);font-weight:600;line-height:1.35;
+  margin:.7rem 0 .1rem;color:var(--ink)}
+#trigwrap{padding:.2rem 0 .1rem}
+textarea#trig,textarea#why{width:100%;min-height:5.5rem;resize:vertical;background:#fff;
+  border:2px solid var(--line2);border-radius:10px;padding:.55rem .65rem;
+  font-size:var(--fs-lg);line-height:1.5;margin-top:.35rem}
+.stepLbl .opt{font-style:normal;font-weight:600;font-size:var(--fs-sm);
+  color:var(--muted);margin-left:.4rem}
+.noTaf{font-size:var(--fs-lg);color:var(--ink2);line-height:1.4}
+.obsCard.prior{opacity:.88}
+/* the justification page reuses the decision card's textarea and status line */
+.gatecard textarea#why{font-size:var(--fs-lg);min-height:9rem}
+.gatecard .btn:disabled{background:#b7c2cc;color:#5d6b76;cursor:not-allowed}
+#whymsg{font-size:var(--fs-sm);color:var(--muted);text-align:center;margin-top:.45rem;
+  min-height:1.3rem;font-weight:600}
+#advance{width:100%;margin-top:.8rem;min-height:4rem;border:0;border-radius:12px;
+  cursor:pointer;background:var(--navy);color:#fff;font-size:var(--fs-lg);font-weight:700}
+#advance:disabled{background:#b7c2cc;color:#5d6b76;cursor:not-allowed}
+#advmsg{font-size:var(--fs-sm);color:var(--muted);text-align:center;margin-top:.45rem;
+  min-height:1.3rem;font-weight:600}
+
+/* ---------------- popups: deliberately one step larger ---------------- */
+/* Each gate and each wizard panel is a PAGE, not a layer floating over the
+   briefing. As an overlay the briefing sat live underneath, scrolling behind
+   the popup, and two scroll contexts competed for the same finger. Hiding the
+   briefing outright leaves one thing on screen and one thing that scrolls.
+   The backdrop is opaque now: there is nothing behind it to show through. */
+#gate{position:static;min-height:100dvh;background:#0a1622;display:flex;
+  align-items:flex-start;justify-content:center;padding:.5rem}
+#gate.off{display:none}
+body:has(#gate:not(.off)) #hdr,
+body:has(#gate:not(.off)) main{display:none}
+/* margin:auto centres the card when it fits and lets it start at the top when
+   it does not — align-items:center would crop the head off a tall card. */
+.gatecard{max-width:46rem;width:100%;margin:auto;background:#fff;border-radius:14px;
+  padding:1rem;font-size:var(--fs-lg)}
+.gatecard h2{font-size:var(--fs-xl);margin-bottom:.35rem;color:var(--navy);line-height:1.2}
+.gatecard .lead{color:var(--ink2);font-size:var(--fs-lg);margin-bottom:.7rem}
+.gatecard p{font-size:var(--fs-lg);margin:0 0 .6rem;line-height:1.5}
+.gatecard ul{font-size:var(--fs-lg);margin:0 0 .7rem;padding-left:1.3rem}
+.gatecard li{margin-bottom:.45rem;line-height:1.45}
+.gatecard .btn{width:100%;min-height:4rem;background:var(--navy);color:#fff;border:0;
+  border-radius:12px;font-size:var(--fs-xl);font-weight:700;cursor:pointer;margin-top:.3rem}
+.gbox{background:#f4f7f9;border:2px solid var(--line);border-radius:10px;
+  padding:.7rem .8rem;margin-bottom:.7rem}
+.gateArt{display:block;width:100%;height:auto;border:1px solid var(--line);
+  border-radius:10px;margin-bottom:.6rem}
+.gateChips{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.8rem}
+.gateChips span{font-family:var(--mono);font-size:var(--fs-sm);font-weight:700;
+  background:#eef2f6;border:1px solid var(--line);color:var(--ink);
+  padding:.18em .55em;border-radius:6px}
+.gateH3{font-size:var(--fs-md);color:var(--muted);margin-bottom:.35rem}
+.gateList{margin:0 0 .9rem;padding-left:1.2rem;font-size:var(--fs-lg)}
+.gateList li{margin-bottom:.4rem;line-height:1.4}
+
+/* out the window */
+#secOTW .canvwrap{background:#0b1116}
+#otwFrame{position:absolute;inset:0;pointer-events:none;
+  box-shadow:inset 0 0 0 5px #10161c, inset 0 14px 34px rgba(0,0,0,.5),
+             inset 0 -14px 30px rgba(0,0,0,.45)}
+#otwNote,#xsNote{padding:.5rem .65rem;font-size:var(--fs-md);color:var(--ink2);
+  background:#f7f9fb;border-top:1px solid var(--line);line-height:1.4}
+.camNote.stale{background:#3a2f16;color:#f0dca8}
+#glHost{position:absolute;left:-9999px;top:0;width:640px;height:360px}
+#noGL{display:none;padding:var(--pad);font-size:var(--fs-md);color:var(--ink2);background:#fff6e2}
+#noGL.on{display:block}
+
+/* ================= device tailoring ================= */
+html[data-dev="phone-sm"]{--pad:.55rem}
+/* The tag stays on small phones and wraps onto its own line. Hiding it removed
+   "Track up · 070°" from the chart and the 2000Z stamps from the window view
+   and the cross-section -- on the device the requirements name as primary, and
+   on the two graphics carrying the weather geometry. */
+html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
+html[data-dev="phone-sm"] #sitGrid{grid-template-columns:1fr 1fr}
+
+/* pair the camera images side by side only when each still has real width */
+@media (min-width:560px){ .camPair{grid-template-columns:1fr 1fr} }
+@media (min-width:620px){ .sub{grid-template-columns:1fr 1fr} }
+@media (min-width:900px){ main{padding:.7rem;gap:.7rem} }
+
+/* Two columns only when the text size still leaves each column usable.
+   Placement follows DOM order exactly, so what a sighted reader sees and what
+   a screen reader or the tab key follows are the same sequence.
+   The text briefing spans BOTH columns. Stacking its three sections instead of
+   tabbing them took it to ~2,860px, which in a single column left a 2,400px
+   void beside it. Full width, its cards flow two-up and the height roughly
+   halves. The decision spans both columns for the same reason and because it
+   is the thing the page exists to collect. */
+/* The intro wizard is full-bleed by design so a phone gets the whole screen.
+   On a desktop that stretched a 16:9 photo across 1440px inside a 378px-tall
+   box -- a 3.8:1 frame -- so the aeroplane sat pillarboxed in a sea of dark.
+   Constrained to a readable column it fills its frame at its own ratio. */
+@media (min-width:1100px){
+  .wzTop,.wzArt,.wzBody,.wzNav{max-width:46rem;margin-inline:auto;width:100%}
+  .wzImg,.wzCanvas{max-height:none}
+  .wzArt{border-radius:12px;overflow:hidden}
+}
+@media (min-width:1100px){
+  main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    align-items:start;gap:.75rem}
+  #secSit   {grid-column:1/3; grid-row:1}
+  #secMap   {grid-column:1;   grid-row:2}
+  #secOTW   {grid-column:2;   grid-row:2}
+  #secBrief {grid-column:1/3; grid-row:3}
+  #secXs    {grid-column:1;   grid-row:4}
+  #secCam   {grid-column:2;   grid-row:4}
+  #secDecide{grid-column:1/3; grid-row:5}
+  /* briefing cards two-up under full-width section headings */
+  #briefBody{display:grid;grid-template-columns:1fr 1fr;gap:0 1rem;align-items:start}
+  .briefH{grid-column:1/3}
+  /* the situation tiles have room for four across at this width */
+  #sitGrid{grid-template-columns:repeat(4,1fr)}
+  /* Keep the form to a readable measure inside a full-width card. Unconstrained
+     it ran 1,383px, which gives a 0-100 slider a metre of travel and sets the
+     action options as single very long lines. */
+  #secDecide .body{max-width:38rem;margin:0 auto}
+  /* the briefing's own cards already flow two-up; stop their inner metric
+     grids from splintering into very narrow columns at this width */
+  .obsMain{grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))}
+}
+/* ---------------- access code ---------------- */
+#lock{position:fixed;inset:0;z-index:9999;background:#0a1622;display:flex;
+  align-items:center;justify-content:center;padding:1rem}
+#lock.off{display:none}
+.lockbox{max-width:26rem;width:100%;background:#fff;border-radius:14px;padding:1.4rem}
+.lockbox h2{font-size:var(--fs-xl);color:var(--navy);margin-bottom:.5rem}
+.lockbox p{font-size:var(--fs-lg);color:var(--ink2);line-height:1.45;margin-bottom:.9rem}
+.lockLbl{display:block;font-size:var(--fs-md);font-weight:700;color:var(--ink);margin-bottom:.25rem}
+#lockCode{width:100%;min-height:var(--tap);font-size:var(--fs-xl);text-align:center;
+  letter-spacing:.3em;border:2px solid var(--line2);border-radius:10px;padding:.4rem}
+.lockbox .btn{width:100%;min-height:var(--tap);margin-top:.8rem;background:var(--navy);
+  color:#fff;border:0;border-radius:12px;font-size:var(--fs-lg);font-weight:700;cursor:pointer}
+#lockMsg{min-height:1.5rem;margin-top:.5rem;font-size:var(--fs-md);font-weight:600;
+  color:var(--ifr);text-align:center}
+@media (max-height:520px) and (orientation:landscape){ #hdr{position:static} }
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header id="hdr">
+  <div class="t">VFR Weather Decision<small>Judgment scenario</small></div>
+  <div class="sp"></div>
+  <!-- No stage pills: there is one measurement, so there is nothing to step through -->
+  <div id="steps"><span class="step on">En route &middot; 2000Z</span></div>
+  <div id="strip"></div>
+</header>
+
+<main>
+  <section class="card" id="secSit">
+    <!-- No tag: the status strip in the header already states the time and
+         where you are, at both stages. Stating it twice on one screen is the
+         redundancy, not the redundancy's cure. -->
+    <h2>Situation</h2>
+    <div class="body">
+      <div id="missionZone"></div>
+      <div id="flightHdr">The flight</div>
+      <div id="sitGrid"></div>
+    </div>
+  </section>
+
+  <section class="card" id="secMap">
+    <h2>Observations &amp; radar<span class="sp"></span><span class="tag">Track up · 070°</span></h2>
+    <!-- The chart no longer repeats this in its top-left corner: one legible
+         HTML label beats the same words twice, once at canvas-text size. -->
+    <div id="mapTools"></div>
+    <div class="canvwrap"><canvas id="map"></canvas></div>
+    <div id="timebar">
+      <div class="lab" id="radarLab">Radar loop — observed times only</div>
+      <div id="timeBtns"></div>
+    </div>
+    <div id="mapLegend"></div>
+  </section>
+
+  <section class="card" id="secOTW">
+      <h2>Out the window<span class="sp"></span><span class="tag" id="otwTag"></span></h2>
+      <div class="canvwrap"><canvas id="otw"></canvas><div id="otwFrame"></div></div>
+      <div id="otwNote"></div>
+    </section>
+
+  <section class="card" id="secBrief">
+    <h2>Text briefing</h2>
+    <!-- Stacked, not tabbed. Behind tabs, only the METAR section was in the DOM
+         on load: the KBBB forecast, the regional trend and the radar statement
+         were each one tap away, so three of the six authored weather rows were
+         invisible unless the participant went looking. That made the stimulus
+         participant-selected while the methodology calls it standardized -- and
+         whether a pilot digs is plausibly a function of the very risk-perception
+         dimensions the study treats as mediators, which would put exposure ON
+         the causal path. Everything is now on screen for everyone. -->
+    <div id="briefBody"></div>
+  </section>
+
+  <section class="card" id="secXs">
+    <h2>Route cross-section<span class="sp"></span><span class="tag" id="xsTag"></span></h2>
+    <div class="canvwrap"><canvas id="xs"></canvas></div>
+    <div id="xsNote">Cloud base and tops over the 45 minutes still to fly, against
+      your altitude. Heights are MSL.</div>
+  </section>
+
+  <section class="card" id="secCam">
+  <!-- The old "Latest vs clear day" tag described a two-pane layout that no
+       longer exists: where a photograph is present it replaces the pair, and
+       the clear-day reference goes with it. The card's own header carries the
+       time, so the tag said nothing true and nothing new. -->
+  <h2>Weather cameras</h2>
+  <div id="siteTabs"></div>
+  <div id="noGL">Camera imagery cannot be displayed on this device. All observations,
+    forecasts and advisories remain available below, and you can answer normally.</div>
+  <div id="camGrid"></div>
+  <div id="camHelp"></div>
+  </section>
+
+  <section class="card" id="secDecide">
+    <h2>Your decision</h2>
+    <div class="body">
+      <div id="rNote"></div>
+
+      <!-- Item order follows the document exactly: intention, action,
+           perceived pressure, reason. The page and the written instrument must
+           not diverge on numbering. -->
+
+      <div class="stepLbl" style="margin-top:1rem"><i>1</i><span id="q1"></span></div>
+      <!-- Track runs the full width and the anchors sit directly under it. With
+           the +/- buttons flanking the track they took 132 of 240 px on a
+           320 px screen, leaving a 108 px track under 255 px of labels. -->
+      <div class="slbox">
+        <div id="slVal" class="empty">Drag the slider, or use &minus; and +</div>
+        <input type="range" id="sl" class="untouched" min="0" max="100" value="50" step="1"
+               aria-label="Likelihood of choosing KBBB, 0 to 100">
+        <div class="slends"><span>0<br>definitely another<br>airport</span
+          ><span class="mid">50<br>equally<br>likely</span
+          ><span class="end">100<br>definitely<br>KBBB</span></div>
+        <div class="slBtns">
+          <button class="slStep" id="slDown" aria-label="Decrease by one">&minus;</button>
+          <button class="slStep" id="slUp" aria-label="Increase by one">+</button>
+        </div>
+      </div>
+
+      <div class="stepLbl" style="margin-top:1.1rem"><i>2</i><span>Immediate action &mdash; select one</span></div>
+      <div class="choices" id="acts"></div>
+      <!-- Shown only after action B, exactly as the document specifies -->
+      <div id="trigwrap" style="display:none">
+        <!-- Badged optional, like item 4. Nothing gates on it, but item 4 four
+             lines below says so explicitly and this did not -- so the only
+             middle option looked like it carried a mandatory paragraph while
+             A, C and D cost one tap. B is the most diagnostic answer: pushing
+             respondents out of it distorts the action distribution, and item 2
+             sits directly above the pressure item they then rate. -->
+        <label class="trigLbl" for="trig">What specific condition or location would
+          trigger your diversion? <em class="opt">optional</em></label>
+        <textarea id="trig" placeholder="For example, a ceiling, a visibility, or a point on the route."></textarea>
+      </div>
+
+      <!-- Items 3 and 4 have moved to their own page, shown AFTER this Submit.
+           The document's numbering is unchanged -- it never said the four items
+           share one screen. Two reasons for the split. First, perceived
+           pressure is not in the model; asking it beside a live DV slider let a
+           participant who rated their pressure at 80 scroll back and revise
+           item 1 to match, which is a path from an unmodelled variable into the
+           primary outcome. Second, committing items 1 and 2 first means the
+           DV is recorded before any reflection the later items provoke. -->
+
+      <button id="advance" disabled>Submit</button>
+      <div id="advmsg"></div>
+    </div>
+  </section>
+
+  <!-- No credits line. Nothing on this page carries a third-party licence any
+       more (the Wikimedia photograph was replaced), so there is no attribution
+       to make, and the author has removed the simulated-imagery notice. The
+       scenario is an openly fictional vignette using fictional identifiers, so
+       no participant is being invited to take KBBB or KCCC for a real place.
+       Provenance for every image is recorded in img/CREDITS.json, which is a
+       developer file and is not served to participants. -->
+</main>
+
+<div id="glHost"><canvas id="gl" width="480" height="270"></canvas></div>
+<!-- Access code screen. NOT SECURITY: this page is served statically, so the
+     code below is readable by anyone who views source. It keeps casual visitors
+     out of a live instrument while it is being piloted; it does not protect
+     anything. Do not rely on it to keep the scenario confidential. -->
+<div id="lock">
+  <div class="lockbox">
+    <h2>Access code</h2>
+    <p>This study page is not yet open. Please enter the code you were given.</p>
+    <label class="lockLbl" for="lockCode">Code</label>
+    <input id="lockCode" type="password" inputmode="numeric" autocomplete="off"
+           aria-describedby="lockMsg">
+    <button class="btn" id="lockGo">Enter</button>
+    <div id="lockMsg" role="status"></div>
+  </div>
+</div>
+
+<div id="gate"><div class="gatecard" id="gateCard"></div></div>
+
+<script>
+"use strict";
+/* ==================================================================== *
+ *  0.  SCENARIO DATA -- mirrors "Decision Making Scenario_v1.docx"
+ *
+ *  VERSION B. One decision, taken airborne at 2000Z about 45 minutes from
+ *  KBBB. There is no preflight stage and no second measurement: the earlier
+ *  two-point design and its T1->T2 delta are gone, along with KAAA and KDDD.
+ *  Every figure below is quoted from the document; anything the document does
+ *  not state is either derived arithmetically (and marked) or absent.
+ * ==================================================================== */
+const FT_PER_NM=6076.12, ftNM=ft=>ft/FT_PER_NM;
+
+/* Geometry, derived rather than invented:
+   - "approaching KBBB from the west-southwest" -> the aeroplane tracks ENE.
+     WSW is 247.5 deg, so the reciprocal track is 067.5; 070 is used, which is
+     the same course the chart legend states.
+   - "approximately 45 minutes from KBBB" on a "135-NM" flight -> at 90 kt the
+     whole flight is 90 minutes, so 45 minutes out is 67.5 NM to run and the
+     unnamed origin lies 67.5 NM behind. Ground speed is the ONE number the
+     document does not give; it is used only to place symbols on the chart and
+     is never shown to the participant, who sees times, not distances.
+   - "KCCC ... approximately 50 minutes away, northeast of your present
+     position" -> 75 NM on 045 from the aeroplane. Note this puts the
+     alternate FARTHER than the destination, exactly as written.
+   x is east, z is north; bearing b maps to (sin b, cos b).                */
+/* Cruise altitude is the one figure version B leaves entirely open, so it is an
+   assumption -- but it is constrained by the document's opening sentence, "in
+   visual conditions below the cloud layer". At 3,500 ft the cross-section drew
+   the aeroplane inside the deck for 100% of the remaining leg: cloud base runs
+   3,241 ft MSL at the aeroplane down to 2,498 at KBBB. 2,500 ft sits about
+   740 ft beneath the deck here -- legal VFR clearance, roughly 1,600 ft AGL
+   over the stated flat terrain -- and lets the deck descend onto the route
+   toward the destination, which is what a 1,500 ft AGL ceiling at KBBB means.
+   Every label derives from CRUISE_TXT; seven hardcoded "3,500 ft" strings used
+   to be free to drift away from the constant that drew the line. */
+const GS=90, CRUISE_FT=2500;
+const CRUISE_TXT=CRUISE_FT.toLocaleString()+" ft";
+const TRK_DEG=70, MIN_KBBB=45, MIN_KCCC=50, ROUTE_LEN=135;
+const d2r=d=>d*Math.PI/180;
+const D_KBBB=GS*MIN_KBBB/60, D_KCCC=GS*MIN_KCCC/60;   // 67.5 NM, 75 NM
+/* The aeroplane sits at the chart origin: it is the only fixed thing in a
+   scenario that no longer has a departure point to hang the geometry on. */
+const AC={x:0,z:0};
+const APTS={
+  KBBB:{name:"KBBB",role:"dest",x:D_KBBB*Math.sin(d2r(TRK_DEG)),z:D_KBBB*Math.cos(d2r(TRK_DEG)),
+        elev:1040,rwy:230,rwyLen:4000},
+  KCCC:{name:"KCCC",role:"alt", x:D_KCCC*Math.sin(d2r(45)),      z:D_KCCC*Math.cos(d2r(45)),
+        elev:1010,rwy:180,rwyLen:4500}
+};
+const RTE_HDG=d2r(TRK_DEG);
+/* Flown track: 67.5 NM of history trailing back down the reciprocal. Drawn as
+   a faded line with NO symbol at its end -- the document never names a
+   departure airport, so the chart must not put one there. */
+const FLOWN=(ROUTE_LEN-D_KBBB);
+const TRACK_TAIL={x:-FLOWN*Math.sin(RTE_HDG), z:-FLOWN*Math.cos(RTE_HDG)};
+/* "Stronger showers 10 to 15 NM west of KBBB, moving east at about 20 knots."
+   West is a true bearing here, so the band sits between the aeroplane and the
+   destination -- and clear of the 045 diversion track, which is why the
+   document can say the KCCC route stays outside it. */
+const SHIELD_T0=2000, SHIELD_X0=APTS.KBBB.x-12.5, SHIELD_SPD=20;
+
+/* ONE stage. Kept as an object so the renderers keep their shape. */
+const SCEN={
+  id:1, zulu:2000, acPos:{t:0},
+  /* The loop shows the authored motion (east at about 20 kt) over the quarter
+     hour ending at the stated 2000Z frame. Nothing later than 2000Z is shown. */
+  radarFrames:[1930,1945,2000],
+  title:"En route decision",
+  q:"Based on the information available at 2000Z, how likely would you be to choose KBBB as your next landing airport?",
+  /* All THREE sentences of the document's instruction line, verbatim. The
+     middle one was missing, and it is the only social-desirability control in
+     the instrument. Item 1 asks a pilot to say how likely they are to press on
+     to a deteriorating non-towered field; the professional script says a good
+     pilot diverts. Without the assurance at the point of answering, expect
+     item 1 depressed and options C/D over-selected, hardest among the CFIs and
+     instrument-rated pilots your UAA frame over-samples. */
+  note:"Answer according to what you would actually do as pilot in command. Responses are confidential and are not used to evaluate pilot competence. Assume that you must remain within VFR limitations.",
+  acts:["Continue to KBBB with the intention of landing there.",
+        "Continue toward KBBB temporarily while preparing to divert at a defined decision point.",
+        "Divert immediately to KCCC.",
+        "Divert immediately to another suitable airport."],
+  /* Option B (index 1) alone opens the trigger question, exactly as the
+     document specifies with "Displayed only after Action B". */
+  triggerFor:1
+};
+
+/* The 1900Z KBBB report is part of the briefing the document supplies, so it
+   is shown alongside the 2000Z observations rather than discarded. */
+const METARS=[
+ {stn:"KBBB",dest:true,zulu:2000,
+  raw:"KBBB 192000Z 23014G22KT 4SM RA BR OVC015 18/17 A2990",
+  wind:"230° at 14 kt, gusting 22",vis:"4 SM",wx:"Rain, mist",cld:"OVC015",tt:"18/17",alt:"A2990",
+  plot:{wdir:230,wspd:14,gst:22,vis:4,ceil:1500,cover:"OVC",temp:18,dew:17}},
+ {stn:"KCCC",zulu:2000,
+  raw:"KCCC 192000Z 24010G16KT 7SM -RA BKN030 22/20 A2992",
+  wind:"240° at 10 kt, gusting 16",vis:"7 SM",wx:"Light rain",cld:"BKN030",tt:"22/20",alt:"A2992",
+  plot:{wdir:240,wspd:10,gst:16,vis:7,ceil:3000,cover:"BKN",temp:22,dew:20}},
+ {stn:"KBBB",dest:true,zulu:1900,prior:true,
+  raw:"KBBB 191900Z 22012G18KT 6SM -RA BKN025 22/21 A2993",
+  wind:"220° at 12 kt, gusting 18",vis:"6 SM",wx:"Light rain",cld:"BKN025",tt:"22/21",alt:"A2993",
+  plot:{wdir:220,wspd:12,gst:18,vis:6,ceil:2500,cover:"BKN",temp:22,dew:21}}
+];
+/* The document gives KBBB a forecast in prose -- "through the planned arrival
+   period, visibility 5 SM in light rain with a broken ceiling at 2,000 ft AGL"
+   -- and states plainly that KCCC has NO TAF. Both facts are shown. */
+const TAFS=[
+ {stn:"KBBB",dest:true,
+  rows:[["Through the planned arrival period","5 SM","Light rain","Broken 2,000 ft AGL"]]},
+ {stn:"KCCC",none:true}
+];
+const ADVS=[
+ {k:"Regional trend",v:"Ceilings 1,500 to 2,500 ft AGL and visibility 3 to 5 SM in light rain and mist.",t:"2000Z"},
+ {k:"Radar",v:"Stronger showers 10 to 15 NM west of KBBB, moving east at about 20 knots. No lightning detected.",t:"2000Z"}
+];
+/* Situation shown as icon tiles: a headline value you can read at a glance,
+   with the qualifier underneath, rather than eight lines of prose. */
+const ICO={
+ // --- mission / social ---
+ // Interlocking bands: the right ring is broken where the left passes over
+ // it, so they read as wedding rings and not as a Venn diagram.
+ rings:'<circle cx="9.5" cy="13.6" r="5.2"/>'+
+       '<path d="M13.74 15.45A5.2 5.2 0 0 1 9.99 9.01"/>'+
+       '<path d="M10.43 7.92A5.2 5.2 0 1 1 14.91 15.6"/>',
+ family:'<circle cx="6.6" cy="10.2" r="2.3"/><path d="M3.3 21v-4.6a3.3 3.3 0 0 1 6.6 0V21"/>'+
+        '<circle cx="12.2" cy="8.8" r="2.5"/><path d="M8.7 21v-5.8a3.5 3.5 0 0 1 7 0V21"/>'+
+        '<circle cx="17.8" cy="12" r="1.9"/><path d="M15.1 21v-3.2a2.7 2.7 0 0 1 5.4 0V21"/>',
+ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 12V3M12 12l7.79-4.5"/>'+
+       '<path d="M12 12V3A9 9 0 0 1 19.79 7.5Z" fill="currentColor" stroke="none" opacity=".16"/>',
+ case:'<rect x="3" y="8" width="18" height="11.5" rx="2.2"/>'+
+      '<path d="M9 8V6.6a1.4 1.4 0 0 1 1.4-1.4h3.2A1.4 1.4 0 0 1 15 6.6V8M3 13.4h18"/>',
+ car:'<path d="M2.6 16.4v-3.1l2.9-3.7h9.2l3.7 3.7h2.6v3.1"/>'+
+     '<circle cx="7" cy="16.6" r="1.9"/><circle cx="16.4" cy="16.6" r="1.9"/>',
+ // --- flight facts ---
+ plane:'<path d="M4.9 13.9q-.7-2.1 1.5-2.5l9.3-.7 4.8.6v3.1l-4.8.7-9.3.1q-1.9-.1-1.5-1.3z"/>'+
+       '<path d="M6.2 10.6h12"/>'+
+       '<path d="M8.4 13.1 7.7 10.7M13.6 12.9l.4-2.2"/>'+
+       '<path d="M16.9 11.3 20.3 6.3h1.2v5.3"/>'+
+       '<path d="M7.4 15v2.2M13 14.8v2.4"/>'+
+       '<circle cx="7.4" cy="17.9" r="1.05"/><circle cx="13" cy="17.9" r="1.05"/>'+
+       '<path d="M4.3 10.1v7.4"/>',
+ // route over a deliberately shallow ground profile -- absorbs the old Terrain tile
+ route:'<path d="M2 19.8q3-2 6-.5t6-1.1q3-1.3 8 .5"/>'+
+       '<path d="M3.4 10.2 18.4 6.4" stroke-dasharray="3 2.3"/>'+
+       '<path d="M16.6 4.5 20.6 6.1l-3.4 2.4"/>',
+ runway:'<path d="M9.5 21 11.2 4h1.6L14.5 21Z"/><path d="M12 7.5v2M12 12v2M12 16.5v2"/>',
+ // both pins identical: a size difference would imply a preferred alternate
+ alt:'<path d="M6.6 21s-3.4-4.8-3.4-7.4a3.4 3.4 0 1 1 6.8 0C10 16.2 6.6 21 6.6 21Z"/>'+
+     '<path d="M17.4 21s-3.4-4.8-3.4-7.4a3.4 3.4 0 1 1 6.8 0c0 2.6-3.4 7.4-3.4 7.4Z"/>',
+ fuel:'<path d="M12 3s-6 6.6-6 10.4a6 6 0 1 0 12 0C18 9.6 12 3 12 3Z"/><path d="M6.5 14.6h11"/>',
+ // sun ABOVE a horizon: the fact is daylight remaining, not daylight
+ sun:'<path d="M2 17.4h20"/><path d="M7 17.4a5 5 0 0 1 10 0"/>'+
+     '<path d="M12 5.4v2.1M4.4 9.1l1.5 1.5M19.6 9.1l-1.5 1.5"/>',
+ /* WZ_TILES asked for "cal" and no such key existed, so svg() emitted the
+    string "undefined" into the <svg> and the fourth tile on the last screen
+    before the briefing rendered as an empty pale box. */
+ cal:'<rect x="3.2" y="5" width="17.6" height="16" rx="2.4"/><path d="M3.2 10h17.6"/>'+
+     '<path d="M8 3v4M16 3v4"/><path d="M7.6 14h3.2M13.2 14h3.2M7.6 17.6h3.2"/>'
+};
+/* Mission context, quoted from the document rather than dramatised. Version B
+   deliberately keeps the commitment GENERIC -- "an important family
+   commitment" -- so the wedding, the sister and the Best Man role are gone.
+   The counterweight sentence is the document's own and is stated in full,
+   because perceived pressure is now itself a measured outcome and must not be
+   inflated by the way the page words the motive. */
+const MISSION_HERO={
+  icon:"family",
+  line1:"An important family commitment",
+  line2:"Arriving on time matters personally"
+};
+const MISSION_CHIPS=[
+  ["case","Not an emergency","no employment obligation and no financial loss"]
+];
+const SITUATION=[
+ ["plane","Aircraft","Single engine","day VFR only · no autopilot"],
+ ["route","Route","135 NM","mostly rural · flat terrain, no significant terrain or obstacle concerns"],
+ ["runway","Destination","KBBB · Rwy 23","4,000 ft · non-towered · AWOS · pattern altitude 1,000 ft AGL · Class G below 700 ft AGL, Class E above"],
+ /* The document's clause "the diversion route remains outside the stronger
+    shower area" was truncated away here. It existed only as chart geometry --
+    recoverable only by projecting the dashed 045 leg across the mosaic -- so a
+    participant who reads rather than measures never received a fact the
+    scenario states plainly, about the option item 1 is asking them to weigh. */
+ ["alt","Alternate","KCCC · Rwy 18/36","4,500 ft · AWOS · no TAF · about 50 minutes away, northeast · the diversion route remains outside the stronger shower area"],
+ ["fuel","Fuel","90 minutes +","at least, remaining at landing either way"],
+ ["sun","Daylight","2 hours +","at least, remaining"],
+ ["plane","You","Current and proficient","familiar with the route · flying alone"]
+];
+const MISSION="You are the pilot in command, about 45 minutes from KBBB on a 135 NM day-VFR flight "+
+  "to an important family commitment. Arriving on time matters personally, but the trip is not "+
+  "connected to an emergency, employment obligation, or financial loss.";
+
+/* ==================================================================== *
+ *  1.  TELEMETRY
+ * ==================================================================== */
+const TEL={t0:performance.now(),ev:[],
+  log(t,d){this.ev.push({ms:Math.round(performance.now()-this.t0),type:t,...(d||{})});
+    if(this.ev.length>4000)this.ev.splice(0,500);},
+  meta(){return{ua:navigator.userAgent,w:innerWidth,h:innerHeight,dpr:devicePixelRatio||1,
+    touch:'ontouchstart' in window,webgl:GLOK,tz:Intl.DateTimeFormat().resolvedOptions().timeZone};}};
+addEventListener("blur",()=>TEL.log("blur"));
+addEventListener("focus",()=>TEL.log("focus"));
+document.addEventListener("visibilitychange",()=>TEL.log("vis",{hidden:document.hidden}));
+/* One response set, not two. The delta between measurements no longer exists,
+   so nothing derived is computed from a pair. */
+const RESULT={response:{destination_likelihood:null},stage:null,meta:null,events:null};
+const stage=()=>SCEN;
+
+/* ==================================================================== *
+ *  2.  MATH
+ * ==================================================================== */
+const M4={
+ persp(f,a,n,fa){const t=1/Math.tan(f/2),o=new Float32Array(16);
+   o[0]=t/a;o[5]=t;o[10]=(fa+n)/(n-fa);o[11]=-1;o[14]=2*fa*n/(n-fa);return o;},
+ look(e,c,u){let zx=e[0]-c[0],zy=e[1]-c[1],zz=e[2]-c[2];
+   let l=Math.hypot(zx,zy,zz)||1;zx/=l;zy/=l;zz/=l;
+   let xx=u[1]*zz-u[2]*zy,xy=u[2]*zx-u[0]*zz,xz=u[0]*zy-u[1]*zx;
+   l=Math.hypot(xx,xy,xz)||1;xx/=l;xy/=l;xz/=l;
+   const yx=zy*xz-zz*xy,yy=zz*xx-zx*xz,yz=zx*xy-zy*xx;
+   return new Float32Array([xx,yx,zx,0,xy,yy,zy,0,xz,yz,zz,0,
+     -(xx*e[0]+xy*e[1]+xz*e[2]),-(yx*e[0]+yy*e[1]+yz*e[2]),-(zx*e[0]+zy*e[1]+zz*e[2]),1]);},
+ mul(a,b){const o=new Float32Array(16);
+   for(let c=0;c<4;c++)for(let r=0;r<4;r++){let s=0;for(let k=0;k<4;k++)s+=a[k*4+r]*b[c*4+k];o[c*4+r]=s;}
+   return o;},
+ inv(m){const o=new Float32Array(16),a=m;
+   const b00=a[0]*a[5]-a[1]*a[4],b01=a[0]*a[6]-a[2]*a[4],b02=a[0]*a[7]-a[3]*a[4],
+     b03=a[1]*a[6]-a[2]*a[5],b04=a[1]*a[7]-a[3]*a[5],b05=a[2]*a[7]-a[3]*a[6],
+     b06=a[8]*a[13]-a[9]*a[12],b07=a[8]*a[14]-a[10]*a[12],b08=a[8]*a[15]-a[11]*a[12],
+     b09=a[9]*a[14]-a[10]*a[13],b10=a[9]*a[15]-a[11]*a[13],b11=a[10]*a[15]-a[11]*a[14];
+   let d=b00*b11-b01*b10+b02*b09+b03*b08-b04*b07+b05*b06;
+   if(!d)return new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);d=1/d;
+   o[0]=(a[5]*b11-a[6]*b10+a[7]*b09)*d;o[1]=(a[2]*b10-a[1]*b11-a[3]*b09)*d;
+   o[2]=(a[13]*b05-a[14]*b04+a[15]*b03)*d;o[3]=(a[10]*b04-a[9]*b05-a[11]*b03)*d;
+   o[4]=(a[6]*b08-a[4]*b11-a[7]*b07)*d;o[5]=(a[0]*b11-a[2]*b08+a[3]*b07)*d;
+   o[6]=(a[14]*b02-a[12]*b05-a[15]*b01)*d;o[7]=(a[8]*b05-a[10]*b02+a[11]*b01)*d;
+   o[8]=(a[4]*b10-a[5]*b08+a[7]*b06)*d;o[9]=(a[1]*b08-a[0]*b10-a[3]*b06)*d;
+   o[10]=(a[12]*b04-a[13]*b02+a[15]*b00)*d;o[11]=(a[9]*b02-a[8]*b04-a[11]*b00)*d;
+   o[12]=(a[5]*b07-a[4]*b09-a[6]*b06)*d;o[13]=(a[0]*b09-a[1]*b07+a[2]*b06)*d;
+   o[14]=(a[13]*b01-a[12]*b03-a[14]*b00)*d;o[15]=(a[8]*b03-a[9]*b01+a[10]*b00)*d;
+   return o;}
+};
+
+/* ==================================================================== *
+ *  3.  TERRAIN + WEATHER FIELD
+ * ==================================================================== */
+/* ONE deck-thickness model, shared by the 2D cross-section and the GLSL sky.
+   They had drifted apart -- the chart used base+1500+700*cov and the shader
+   base+2600+1800*cov -- so the cross-section drew tops near 5,500 ft at the
+   KBBB end while the PIREP two tabs away reported "tops 8,000-10,000 ft" and
+   the out-the-window view agreed with neither. Tops are the fact that tells a
+   VFR-day-only pilot there is no over-the-top option, so a thin-looking layer
+   argued the opposite of the authored briefing. The shader values won because
+   they already matched the PIREP; the GLSL interpolates these constants now,
+   so the two cannot separate again. */
+const DECK_T0=2600, DECK_TCOV=1800;
+const deckTop=(baseFt,cov)=>baseFt+DECK_T0+DECK_TCOV*cov;
+
+function hash2(x,y){const h=Math.sin(x*127.1+y*311.7)*43758.5453;return h-Math.floor(h);}
+function vnoise(x,y){const ix=Math.floor(x),iy=Math.floor(y);let fx=x-ix,fy=y-iy;
+  fx=fx*fx*(3-2*fx);fy=fy*fy*(3-2*fy);
+  const a=hash2(ix,iy),b=hash2(ix+1,iy),c=hash2(ix,iy+1),d=hash2(ix+1,iy+1);
+  return (a*(1-fx)+b*fx)*(1-fy)+(c*(1-fx)+d*fx)*fy;}
+function fbm2(x,y,o=5){let s=0,a=.5,fx=x,fy=y;
+  for(let i=0;i<o;i++){s+=a*vnoise(fx,fy);fx*=2.03;fy*=2.01;a*=.5;}return s;}
+function terrainFt(x,z){return 950+420*(fbm2(x*.018+11.3,z*.018+7.1)-.5)*2+90*(fbm2(x*.07+3,z*.07+9)-.5)*2;}
+function zuluDiff(a,b){const m=z=>Math.floor(z/100)*60+(z%100);return m(a)-m(b);}
+function shieldCx(z){return SHIELD_X0+SHIELD_SPD*(zuluDiff(z,SHIELD_T0)/60);}
+// gentle bow in the leading edge; a large amplitude made the broad stratiform
+// shield read as a serpentine squall line
+function shieldWave(z){return 3.0*Math.sin(z*.018)+2.0*Math.sin(z*.009+1.7);}
+/* The shower area is BOUNDED along the front, not an infinite north-south line.
+   It was a line, inherited from a version of this scenario whose airports all
+   lay in one east-west corridor. Version B puts KCCC 30 NM NORTH of KBBB, and
+   the line swept straight through it: measured on the live page, KCCC sat in
+   30 dBZ while KBBB read 7 -- the chart showed the alternate buried in the
+   heaviest returns and the destination nearly clear. That is the exact
+   opposite of the scenario, which states the diversion route "remains outside
+   the stronger shower area", and it argued against the diversion option at the
+   moment the participant chooses one.
+   dz is quartic so the area has a flat top and steep sides, like a cluster of
+   cells, rather than a Gaussian smear that never quite ends. */
+const SHIELD_ALONG=22;                       // NM half-extent along the front
+function shieldAt(x,z,zulu){
+  const dx=(x-(shieldCx(zulu)+shieldWave(z)))/11;
+  const dz=(z-APTS.KBBB.z)/SHIELD_ALONG;
+  return Math.exp(-dx*dx)*Math.exp(-dz*dz*dz*dz);
+}
+
+// Cloud / visibility field is INTERPOLATED FROM THE REPORTED OBSERVATIONS the
+// participant is given. Presentation layer only -- it never adds information.
+/* Two reported stations plus ONE anchor at the aeroplane, which is needed
+   because the document states the pilot's own condition -- "in visual
+   conditions below the cloud layer" -- and with only two stations the field
+   would otherwise interpolate the destination's overcast right back over the
+   cockpit. The anchor uses the regional trend the document supplies (ceilings
+   1,500-2,500 AGL, visibility 3-5 SM), taken at its better end because the
+   pilot is stated to be in visual conditions. Nothing here is new information:
+   every number traces to a row of the document's weather table. */
+const STN_WX=[
+  {a:"KBBB",ceil:1500,cov:1.00,vis:4},
+  {a:"KCCC",ceil:3000,cov:.85, vis:7},
+  {a:"__AC",ceil:2500,cov:.80, vis:5}
+];
+const WXPT=st=>st.a==="__AC"?AC:APTS[st.a];
+function wxAt(x,z){let ws=0,c=0,v=0,s=0;
+  for(const st of STN_WX){const a=WXPT(st),d=Math.max(Math.hypot(x-a.x,z-a.z),1),w=1/(d*d);
+    ws+=w;c+=w*st.ceil;v+=w*st.cov;s+=w*st.vis;}
+  return {ceil:c/ws,cov:v/ws,vis:s/ws};}
+function stnUniform(){const o=[];
+  for(const st of STN_WX){const a=WXPT(st);o.push(a.x,a.z,st.ceil,st.cov);}
+  return new Float32Array(o);}
+/* The aeroplane no longer moves along a route during the task: there is a
+   single instant. acPosAt keeps its name so the renderers are unchanged. */
+function acPosAt(){return {x:AC.x,z:AC.z,f:(ROUTE_LEN-D_KBBB)/ROUTE_LEN};}
+
+function flightCat(ceil,vis){
+  if(ceil<500||vis<1)return "LIFR";
+  if(ceil<1000||vis<3)return "IFR";
+  if(ceil<=3000||vis<=5)return "MVFR";
+  return "VFR";}
+const CATC={VFR:"#00a04b",MVFR:"#0d6efd",IFR:"#d40000",LIFR:"#c026d3"};
+
+// Standard NWS base-reflectivity palette. The scenario's rain never reaches
+// the red/magenta end, which is exactly the point of using the real scale.
+const DBZ=[[5,"#04E9E7"],[10,"#019FF4"],[15,"#0300F4"],[20,"#02FD02"],[25,"#01C501"],
+  [30,"#008E00"],[35,"#FDF802"],[40,"#E5BC00"],[45,"#FD9500"],[50,"#FD0000"],
+  [55,"#D40000"],[60,"#BC0000"],[65,"#F800FD"],[70,"#9854C6"]];
+function dbzColor(v){let c=null;for(const [t,col] of DBZ){if(v>=t)c=col;}return c;}
+function dbzAt(x,z,zulu){
+  const s=shieldAt(x,z,zulu), tex=fbm2(x*.19+zulu*.004,z*.19);
+  // "Stronger showers" with "no lightning detected" -- so the palette is
+  // capped short of the red/magenta convective end on purpose.
+  const peak=38;
+  // s^1.6 steepens the edge; a linear falloff smeared 5-15 dBZ across the whole
+  // chart and made light rain look like a far larger area than it is
+  return Math.min(peak, Math.pow(s,1.6)*(.60+.70*tex)*peak-5);
+}
+/* Current observations first, the 1900Z KBBB report last and labelled as
+   prior. Order is fixed -- there is only one time point now, so nothing can
+   reorder between measurements. */
+const obsFor=()=>METARS.slice();
+const obsOf=stn=>METARS.find(m=>m.stn===stn&&!m.prior);
+
+/* ==================================================================== *
+ *  4.  PLAN CHART -- track up, AWC GFA conventions
+ * ==================================================================== */
+/* ---- device classing -------------------------------------------------
+   Canvas text is drawn in device pixels and cannot inherit the rem scale,
+   so TS carries the same intent across to the charts. Small screens get
+   proportionally LARGER canvas text and correspondingly less of it (see
+   DETAIL), which is the only way both stay legible.                     */
+let TS=1.25, DEV="desktop", DETAIL=true;
+function applyDevice(){
+  const w=innerWidth, h=innerHeight;
+  const coarse = matchMedia("(pointer:coarse)").matches;
+  const short  = h<560;
+  if      (w<400)  DEV="phone-sm";
+  else if (w<560)  DEV="phone";
+  else if (w<820)  DEV=coarse?"tablet":"small";
+  else if (w<1180) DEV="tablet";
+  else if (w<1600) DEV="desktop";
+  else             DEV="desktop-lg";
+  document.documentElement.dataset.dev=DEV;
+  document.documentElement.dataset.orient=(w>h?"land":"port");
+  // matched to the 20-26px UI type so chart labels read at the same size
+  TS = {"phone-sm":1.78,"phone":1.74,"small":1.66,"tablet":1.60,
+        "desktop":1.50,"desktop-lg":1.44}[DEV];
+  // full station detail only where the chart is wide enough to carry it
+  DETAIL = w>=760;
+  return {DEV,TS,short,coarse};
+}
+const S = n => n*TS*MDPR;              // canvas size helper
+
+const mapC=document.getElementById("map");
+let MDPR=1, MV=null, selStn=null;
+let layRadar=true, layMetar=true;
+let radarZulu=null;
+
+// Track up: rotate the world so the 070° course points to the top of the
+// screen. Pilots read a moving-map this way; north-up forces a mental rotation.
+const TRK=RTE_HDG;
+function rot(x,z){return {u:x*Math.cos(TRK)-z*Math.sin(TRK), v:x*Math.sin(TRK)+z*Math.cos(TRK)};}
+
+function mapTransform(C){
+  const W=C.width,H=C.height;
+  /* The chart must hold both fields, the aeroplane, and enough of the flown
+     track behind it to read as a flight already under way. The tail is
+     included at half length: all 67.5 NM of history would push the two
+     airports into the top third and waste the frame on empty ground. */
+  const pts=[];
+  for(const k in APTS){const r=rot(APTS[k].x,APTS[k].z);pts.push(r);}
+  pts.push(rot(AC.x,AC.z));
+  pts.push(rot(TRACK_TAIL.x*0.5,TRACK_TAIL.z*0.5));
+  // extra room at the top so the destination's plot and label are never clipped
+  // generous vertical margin: the end airports sit at the extremes of the
+  // track-up projection and their labels need somewhere to go
+  let minU=Math.min(...pts.map(p=>p.u))-30, maxU=Math.max(...pts.map(p=>p.u))+30;
+  let minV=Math.min(...pts.map(p=>p.v))-52, maxV=Math.max(...pts.map(p=>p.v))+52;
+  const pad=8*MDPR;
+  const s=Math.min((W-2*pad)/(maxU-minU),(H-2*pad)/(maxV-minV));
+  const ox=pad+((W-2*pad)-(maxU-minU)*s)/2, oy=pad+((H-2*pad)-(maxV-minV)*s)/2;
+  const X=(x,z)=>{const r=rot(x,z);return ox+(r.u-minU)*s;};
+  const Y=(x,z)=>{const r=rot(x,z);return H-oy-(r.v-minV)*s;};
+  const invUV=(px,py)=>{
+    const u=(px-ox)/s+minU, v=(H-oy-py)/s+minV;
+    return {x:u*Math.cos(TRK)+v*Math.sin(TRK), z:-u*Math.sin(TRK)+v*Math.cos(TRK)};
+  };
+  return {s,X,Y,inv:invUV};
+}
+
+/* Size a chart canvas by how far apart the airports actually land, rather than
+   by a fraction of the viewport or a fixed pixel cap. Four fields squeezed
+   into a short strip collapse into one cluster on a small screen and their
+   labels overlap — the projection is height-limited here (the track-up route
+   runs tall and narrow), so height buys separation almost linearly and one
+   solve gets there. Returns the achieved separation in CSS px. */
+function fitChart(c,cwCSS,opt){
+  opt=opt||{};
+  const target=opt.target||70, d=Math.min(devicePixelRatio||1,2);
+  // own-ship counts as a mark: with only two fields left it is the symbol most
+  // likely to be swallowed, and it is the one the participant is standing on
+  const marks=Object.keys(APTS).map(k=>APTS[k]).concat([AC],opt.extra||[]);
+  const apply=h=>{
+    c.style.height=h+"px";
+    c.width=Math.round(cwCSS*d); c.height=Math.round(h*d);
+    const T=mapTransform(c), k2c=c.width/cwCSS;
+    let mn=Infinity;
+    for(let i=0;i<marks.length;i++)for(let j=i+1;j<marks.length;j++){
+      const a=marks[i],b=marks[j];
+      mn=Math.min(mn,Math.hypot(T.X(a.x,a.z)-T.X(b.x,b.z),
+                                T.Y(a.x,a.z)-T.Y(b.x,b.z))/k2c);
+    }
+    return mn;
+  };
+  let h=Math.round(opt.start||Math.min(cwCSS*0.92,innerHeight*0.42));
+  const sep=apply(h);
+  if(sep>=target) return sep;
+  // the caps stop a very tight geometry from producing an endless scroll
+  h=Math.min(Math.round(h*target/sep),
+             Math.round(innerHeight*(opt.maxVH||1.2)), opt.maxPx||640);
+  return apply(h);
+}
+
+/* ---- fictional basemap -------------------------------------------------
+   Political boundaries generated ONCE from a fixed seed, in north-up world
+   space, so every participant sees a byte-identical chart and the surveyed
+   lines land at a consistent oblique after the track-up rotation.
+   Two genotypes, as real US boundaries have: long surveyed segments snapped
+   to world N-S / E-W, and one river-following line with meander noise.
+   Furniture only -- nothing here is an input to the decision.              */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;
+  let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;
+  return((t^t>>>14)>>>0)/4294967296;};}
+let BASE=null;
+function buildBasemap(){
+  const rnd=mulberry32(20260519);
+  const B={states:[],counties:[],river:[],lakes:[],cities:[]};
+  // river-following state line, running roughly north-south west of the route
+  const pts=[];
+  for(let z=-110;z<=170;z+=1.5){
+    const t=(z+110)/280;
+    const trend=Math.sin(t*Math.PI*1.7+0.6)*11;
+    const meander=Math.sin(z*0.52)*1.5+Math.sin(z*0.21+2.2)*2.1;
+    pts.push([44+trend+meander,z]);
+  }
+  B.states.push(pts); B.river=pts;
+  // surveyed state line: due east from the river, with one right-angle jog
+  const jz=74, jx=44+Math.sin((jz+110)/280*Math.PI*1.7+0.6)*11;
+  B.states.push([[jx,jz],[128,jz],[128,jz-9],[240,jz-9]]);
+  // county lattice, axis-aligned, jittered, nudged clear of the stations
+  const clearOf=(x,z,horiz)=>{
+    for(const k in APTS){const a=APTS[k];
+      if(horiz ? Math.abs(z-a.z)<9 : Math.abs(x-a.x)<9) return false;}
+    return true;
+  };
+  for(let x=-40;x<=220;x+=44){
+    let v=x+(rnd()-0.5)*9; if(!clearOf(v,0,false)) v+=13;
+    B.counties.push([[v,-110],[v,170]]);
+  }
+  for(let z=-100;z<=160;z+=41){
+    let v=z+(rnd()-0.5)*9; if(!clearOf(0,v,true)) v+=13;
+    B.counties.push([[-40,v],[240,v]]);
+  }
+  // small lakes, kept well clear of the course and both diversion legs
+  B.lakes=[[18,-42,7,4.4],[152,96,6,3.6],[-6,88,5,3.2]];
+  // towns: bland invented names, placed off the course
+  B.cities=[[24,-30,"Marlow"],[10,62,"Ashfield"],[150,-34,"Bexley"],
+            [66,104,"Crandon"],[176,58,"Elmore"],[104,-64,"Norwich"]];
+  return B;
+}
+function drawBasemap(g,X,Y,W,H){
+  if(!BASE) BASE=buildBasemap();
+  const poly=(pts,close)=>{g.beginPath();
+    pts.forEach((p,i)=>i?g.lineTo(X(p[0],p[1]),Y(p[0],p[1])):g.moveTo(X(p[0],p[1]),Y(p[0],p[1])));
+    if(close)g.closePath();};
+  // water first
+  for(const [lx,lz,rx,rz] of BASE.lakes){
+    g.save();g.beginPath();
+    for(let i=0;i<=28;i++){const a=i/28*Math.PI*2;
+      const r1=rx*(0.82+0.22*Math.sin(a*3+lx)), r2=rz*(0.82+0.22*Math.sin(a*2+lz));
+      const px=lx+Math.cos(a)*r1, pz=lz+Math.sin(a)*r2;
+      i?g.lineTo(X(px,pz),Y(px,pz)):g.moveTo(X(px,pz),Y(px,pz));}
+    g.closePath();g.fillStyle="#c8d8e3";g.fill();g.restore();
+  }
+  // hairlines: fixed device pixels, NOT the type scale, or they thicken into
+  // competition with the AIRMET edge on large displays
+  g.lineWidth=0.8*MDPR;g.strokeStyle="rgba(120,128,136,.34)";
+  for(const c of BASE.counties){poly(c);g.stroke();}
+  g.lineWidth=1.1*MDPR;g.strokeStyle="rgba(120,155,178,.85)";
+  poly(BASE.river);g.stroke();
+  g.lineWidth=1.25*MDPR;g.strokeStyle="#6f767e";
+  for(const s of BASE.states){poly(s);g.stroke();}
+  // Towns: sans-serif and grey, deliberately unlike the mono ICAO idents, and
+  // always subordinate to them. A label is dropped rather than allowed to
+  // collide with an aviation element or run off the frame.
+  g.textAlign="left";g.textBaseline="middle";
+  g.font=`${S(7.6)}px system-ui,sans-serif`;
+  for(const [cx,cz,nm] of BASE.cities){
+    const px=X(cx,cz),py=Y(cx,cz);
+    if(px<0||px>W||py<0||py>H) continue;
+    g.beginPath();g.arc(px,py,2*MDPR,0,7);g.fillStyle="rgba(107,112,120,.85)";g.fill();
+    const tw=g.measureText(nm).width;
+    let clash = px+5*MDPR+tw > W-S(6);            // runs off the right edge
+    if(px>W-S(80) && py<S(70)) clash=true;        // north arrow
+    if(px>W-S(150) && py>H-S(34)) clash=true;     // scale bar
+    for(const k in APTS){                          // any station plot
+      if(Math.hypot(X(APTS[k].x,APTS[k].z)-px, Y(APTS[k].x,APTS[k].z)-py) < S(46)) clash=true;
+    }
+    if(clash) continue;
+    g.fillStyle="rgba(91,96,104,.92)";
+    haloText(g,nm,px+5*MDPR,py-S(1));
+  }
+}
+
+// opts.weather=false renders the same chart with no radar, no AIRMET and no
+// station plots — used by the intro wizard so the route is introduced in the
+// exact projection the participant will read weather on later.
+function drawMap(C,opts){
+  C=C||mapC; opts=opts||{};
+  const weather=opts.weather!==false;
+  const g=C.getContext("2d"),W=C.width,H=C.height,st=stage();
+  const zulu = radarZulu!==null?radarZulu:st.zulu;
+  const TR=mapTransform(C);
+  if(weather) MV=TR;                       // only the live chart is tap-mapped
+  const {X,Y,s}=TR;
+  g.setTransform(1,0,0,1,0,0);
+
+  // --- GFA-style light basemap ---
+  g.fillStyle="#eceee8";g.fillRect(0,0,W,H);
+  const cell=Math.max(5*MDPR,s*2.4);
+  for(let py=0;py<H;py+=cell)for(let px=0;px<W;px+=cell){
+    const w=MV.inv(px,py),h=terrainFt(w.x,w.z);
+    const t=Math.max(0,Math.min(1,(h-620)/720));
+    g.fillStyle=`rgb(${Math.round(235-14*t)},${Math.round(238-12*t)},${Math.round(228-20*t)})`;
+    g.fillRect(px,py,cell+1,cell+1);
+  }
+  // GFA has no graticule. Boundaries replace the grid and give the same
+  // sense of scale without reading as synthetic.
+  drawBasemap(g,X,Y,W,H);
+
+  // --- radar mosaic, banded like a NEXRAD product ---
+  if(weather && layRadar){
+    const rc=Math.max(3*MDPR,s*1.5);
+    for(let py=0;py<H;py+=rc)for(let px=0;px<W;px+=rc){
+      const w=MV.inv(px,py), v=dbzAt(w.x,w.z,zulu);
+      const col=dbzColor(v); if(!col) continue;
+      g.globalAlpha=.62; g.fillStyle=col; g.fillRect(px,py,rc+1,rc+1);
+    }
+    g.globalAlpha=1;
+  }
+
+  /* NO AIRMET LAYER. Version B's scenario lists no advisory of any kind, and a
+     hatched "AIRMET SIERRA" polygon is not scenery -- it is the one product on
+     the chart carrying regulatory weight, and it was the only graphic the text
+     briefing could not corroborate. It also enclosed BOTH airports while
+     leaving the aeroplane outside, asserting formal IFR over an alternate
+     whose own METAR two cards away reads 7 SM and broken 3,000. Every value in
+     this scenario is MVFR and the terrain is stated as flat, so no Sierra
+     criterion is met either. The wizard promises "every observation, forecast
+     and advisory in words" and the no-WebGL fallback promises the same; both
+     were false while this shipped. */
+
+  /* --- track ---
+     Ahead of the aeroplane, a solid course line to KBBB. Behind it, the flown
+     track fades out and simply stops: the document names no departure field,
+     so nothing is drawn at its end. The diversion leg to KCCC is dashed,
+     because it is an option rather than a plan.                            */
+  const A=AC,B=APTS.KBBB;
+  const grd=g.createLinearGradient(X(TRACK_TAIL.x,TRACK_TAIL.z),Y(TRACK_TAIL.x,TRACK_TAIL.z),
+                                   X(A.x,A.z),Y(A.x,A.z));
+  grd.addColorStop(0,"rgba(16,26,82,0)"); grd.addColorStop(1,"rgba(16,26,82,.55)");
+  g.strokeStyle=grd;g.lineWidth=S(2.2);
+  g.beginPath();g.moveTo(X(TRACK_TAIL.x,TRACK_TAIL.z),Y(TRACK_TAIL.x,TRACK_TAIL.z));
+  g.lineTo(X(A.x,A.z),Y(A.x,A.z));g.stroke();
+
+  g.strokeStyle="#101a52";g.lineWidth=S(2.4);
+  g.beginPath();g.moveTo(X(A.x,A.z),Y(A.x,A.z));g.lineTo(X(B.x,B.z),Y(B.x,B.z));g.stroke();
+  const ux=(B.x-A.x)/D_KBBB,uz=(B.z-A.z)/D_KBBB,nx=-uz,nz=ux;
+  g.lineWidth=S(1.6);
+  for(let d=20;d<D_KBBB;d+=20){             // 20 NM distance ticks
+    const mx=A.x+ux*d,mz=A.z+uz*d,t=2.6;
+    g.beginPath();
+    g.moveTo(X(mx+nx*t,mz+nz*t),Y(mx+nx*t,mz+nz*t));
+    g.lineTo(X(mx-nx*t,mz-nz*t),Y(mx-nx*t,mz-nz*t));g.stroke();
+  }
+  g.setLineDash([S(7),S(5)]);g.strokeStyle="rgba(20,30,80,.5)";g.lineWidth=S(1.8);
+  g.beginPath();g.moveTo(X(A.x,A.z),Y(A.x,A.z));
+  g.lineTo(X(APTS.KCCC.x,APTS.KCCC.z),Y(APTS.KCCC.x,APTS.KCCC.z));g.stroke();
+  g.setLineDash([]);
+
+  // --- aircraft ---
+  // own-ship can be requested independently of the weather layers, so the
+  // en-route card can show position on the same projection with no radar
+  const showShip=(opts.ownship!==undefined?opts.ownship:weather);
+  if(showShip){
+    const p=acPosAt(),px=X(p.x,p.z),py=Y(p.x,p.z);
+    // Little aeroplane rather than an arrowhead: reads instantly as "me".
+    g.save();g.translate(px,py);              // track up -> nose is screen up
+    const u=S(1);
+    // Ownship in white with a dark outline: the old navy silhouette sank into
+    // the course line and disappeared entirely over the radar band.
+    g.save();
+    g.shadowColor="rgba(0,0,0,.55)"; g.shadowBlur=S(5);
+    g.fillStyle="#ffffff"; g.strokeStyle="#0d1a3a"; g.lineWidth=S(2.1);
+    g.lineJoin="round";
+    g.beginPath();
+    g.moveTo(0,-13*u);                                   // nose
+    g.quadraticCurveTo(2.2*u,-9*u, 2.2*u,-3.5*u);        // forward fuselage
+    g.lineTo(13*u,2.2*u);                                // right wing leading
+    g.lineTo(13*u,4.6*u); g.lineTo(2.2*u,2.2*u);         // right wing trailing
+    g.lineTo(2.2*u,8.4*u);                               // aft fuselage
+    g.lineTo(5.6*u,11.2*u); g.lineTo(5.6*u,13*u);        // right tailplane
+    g.lineTo(-5.6*u,13*u); g.lineTo(-5.6*u,11.2*u);      // left tailplane
+    g.lineTo(-2.2*u,8.4*u);
+    g.lineTo(-2.2*u,2.2*u); g.lineTo(-13*u,4.6*u);       // left wing trailing
+    g.lineTo(-13*u,2.2*u); g.lineTo(-2.2*u,-3.5*u);      // left wing leading
+    g.quadraticCurveTo(-2.2*u,-9*u, 0,-13*u);
+    g.closePath();
+    g.stroke();                    // outline first, under the shadow
+    g.shadowColor="transparent";
+    g.fill(); g.stroke();
+    g.restore();
+    g.restore();
+    if(DETAIL){        // on a phone the cross-section already shows the altitude
+      g.font=`700 ${S(10)}px ui-monospace,monospace`;g.textAlign="left";g.textBaseline="middle";
+      g.fillStyle="#101a52";haloText(g,CRUISE_TXT,px+S(16),py);
+    }
+  }
+
+  // --- station plots ---
+  // only the two reported stations plot; the 1900Z prior is text-only
+  /* Braced. Without them the `else` bound to the inner `if(!m.prior)` instead
+     of the outer test, so on the weather-free charts the whole statement was
+     skipped and drawPlainAirport was never called -- the wizard's "Where you
+     are going" panel drew its course lines with no airport symbols on them,
+     which is the one thing that panel exists to show. */
+  if(weather && layMetar){
+    for(const m of METARS) if(!m.prior) drawStation(g,m,X,Y);
+  } else if(!weather){
+    for(const k in APTS) drawPlainAirport(g,k,X,Y);
+  }
+
+  drawMapFurniture(g,W,H,s,weather?zulu:undefined);
+}
+function haloText(g,t,x,y,halo){
+  g.strokeStyle=halo||"rgba(255,255,255,.92)";g.lineWidth=S(3.6);
+  g.lineJoin="round";g.miterLimit=2;
+  g.strokeText(t,x,y);g.fillText(t,x,y);
+}
+
+// AWC station plot: flight-category circle with sky cover, wind barb, and a
+// compact ceiling / visibility block.
+// KBBB sits up-track, KCCC off to the left in the track-up frame; the plots
+// push away from each other and away from the course line between them
+const STN_OFF={KBBB:{dx:30,dy:-22},KCCC:{dx:-32,dy:-18}};
+function drawStation(g,m,X,Y){
+  const a=APTS[m.stn],p=m.plot,cat=flightCat(p.ceil,p.vis),col=CATC[cat];
+  const cx=X(a.x,a.z),cy=Y(a.x,a.z),R=S(8.5);
+  const sel = selStn===m.stn;
+
+  if(sel){g.beginPath();g.arc(cx,cy,R*2.5,0,7);g.fillStyle="rgba(26,95,168,.15)";g.fill();
+    g.strokeStyle="#1a5fa8";g.lineWidth=S(2);g.stroke();}
+
+  // sky-cover circle, coloured by flight category
+  g.beginPath();g.arc(cx,cy,R,0,7);g.fillStyle="#fff";g.fill();
+  g.strokeStyle=col;g.lineWidth=S(2.4);g.stroke();
+  g.save();g.beginPath();g.arc(cx,cy,R-1,0,7);g.clip();g.fillStyle=col;
+  if(p.cover==="OVC")g.fillRect(cx-R,cy-R,R*2,R*2);
+  else if(p.cover==="BKN"){g.fillRect(cx-R,cy-R,R*2,R);g.fillRect(cx-R,cy,R,R);}
+  else if(p.cover==="SCT")g.fillRect(cx-R,cy-R,R*2,R);
+  g.restore();
+
+  // wind barb -- shaft points into the wind, drawn in screen space so it
+  // stays meteorologically correct after the track-up rotation
+  const wr=(p.wdir*Math.PI/180)-TRK;
+  const bx=Math.sin(wr),by=-Math.cos(wr),L=S(20);
+  g.strokeStyle="#1d2733";g.lineWidth=S(1.9);
+  g.beginPath();g.moveTo(cx+bx*R,cy+by*R);g.lineTo(cx+bx*(R+L),cy+by*(R+L));g.stroke();
+  let kt=Math.round(p.wspd/5)*5,pos=0;
+  const perpx=-by,perpy=bx;
+  const feather=(at,len)=>{const sx=cx+bx*(R+L-at),sy=cy+by*(R+L-at);
+    g.beginPath();g.moveTo(sx,sy);
+    g.lineTo(sx+perpx*len-bx*S(3.6),sy+perpy*len-by*S(3.6));g.stroke();};
+  while(kt>=10){feather(pos,S(8));pos+=S(4.4);kt-=10;}
+  if(kt>=5)feather(pos===0?S(2):pos,S(4.2));
+
+  // text block
+  const W=mapC.width, H=mapC.height;
+  const ceilTxt=p.ceil>=12000?"no ceiling":`${p.cover} ${p.ceil.toLocaleString()} ft`;
+  const clampX=(v,half)=>Math.max(half+S(3),Math.min(W-half-S(3),v));
+
+  if(!DETAIL){
+    // At phone type sizes four stations cannot carry two labels each without
+    // colliding. The chart answers "where is the weather relative to my
+    // route"; the exact category and numbers are in the METAR cards below,
+    // and the circle colour plus the legend still give category at a glance.
+    // Freshness is NOT flagged on the chart. A "new" marker appears only at
+    // T2 and only on the two stations that worsened, which makes it a
+    // T2-only attentional prime pointing straight at the deterioration.
+    // The age chip on every METAR card carries freshness uniformly instead.
+    g.textAlign="center";g.textBaseline="middle";
+    g.font=`700 ${S(13)}px ui-monospace,monospace`;g.fillStyle="#101a52";
+    const idW=g.measureText(m.stn).width;
+    haloText(g,m.stn,clampX(cx,idW/2),Math.min(H-S(9),cy+R+S(15)));
+    return;
+  }
+
+  const off=STN_OFF[m.stn], tx=cx+S(off.dx), ty=cy+S(off.dy);
+  const right=off.dx>0;
+  g.textAlign=right?"left":"right";g.textBaseline="middle";
+  g.font=`700 ${S(12)}px ui-monospace,monospace`;g.fillStyle="#101a52";
+  haloText(g,m.stn,tx,ty-S(13));
+  g.font=`600 ${S(11)}px ui-monospace,monospace`;g.fillStyle="#2c3a47";
+  haloText(g,`${p.vis} SM · ${ceilTxt}`,tx,ty+S(2));
+  g.font=`${S(10)}px ui-monospace,monospace`;g.fillStyle="#5d6d7c";
+  haloText(g,m.zulu+"Z",tx,ty+S(15));   // both plotted stations are 2000Z
+  // category chip
+  g.font=`700 ${S(10)}px ui-monospace,monospace`;
+  const cw=g.measureText(cat).width+S(10);
+  g.fillStyle=col;g.fillRect(right?tx:tx-cw,ty-S(33),cw,S(14));
+  g.fillStyle="#fff";g.textAlign="center";
+  g.fillText(cat,(right?tx+cw/2:tx-cw/2),ty-S(26));
+}
+
+// Airport symbol with no weather attached, for the route-introduction chart.
+// Labels are pushed to a different side per field: KCCC and KDDD sit close
+// together on screen and collide if both are labelled underneath.
+const PLAIN_LBL={KBBB:[1,0],KCCC:[-1,0]};
+function drawPlainAirport(g,k,X,Y){
+  const a=APTS[k], cx=X(a.x,a.z), cy=Y(a.x,a.z), R=S(9);
+  // role markers, deliberately NOT category hues: dark ink for the destination
+  // (no category is dark grey), and the departure/alternate greens and blues
+  // are kept only on this plain chart, which carries no category layer at all
+  const col=a.role==="dest"?"#1d2733":a.role==="dep"?"#00843d":"#1a5fa8";
+  g.beginPath();g.arc(cx,cy,R,0,7);
+  g.fillStyle="#fff";g.fill();
+  g.strokeStyle=col;g.lineWidth=S(3);g.stroke();   // clean ring, no stub
+  g.beginPath();g.arc(cx,cy,R*0.34,0,7);g.fillStyle=col;g.fill();
+  const [dx,dy]=PLAIN_LBL[k];
+  g.textAlign=dx>0?"left":dx<0?"right":"center";
+  g.textBaseline=dy>0?"top":dy<0?"bottom":"middle";
+  // Identifier only. "departure" / "destination" sub-lines collided with the
+  // neighbouring field and merely repeated the panel text beside the chart.
+  const W=g.canvas.width, H=g.canvas.height;
+  const tx=Math.max(S(8),Math.min(W-S(8), cx+dx*(R+S(7))));
+  const ty=Math.max(S(18),Math.min(H-S(14), cy+dy*(R+S(7))));
+  g.font=`700 ${S(14)}px ui-monospace,monospace`;g.fillStyle="#101a52";
+  haloText(g,k,tx,ty);
+}
+function drawMapFurniture(g,W,H,s,frameZ){
+  // Scale bar. On narrow charts the station labels stack below their circle,
+  // and KAAA sits bottom-centre, so the bar moves to the right to clear it.
+  const nm=20,len=nm*s;
+  const x0=DETAIL?S(12):(W-len-S(12)), y0=H-S(14);
+  g.strokeStyle="#2a3644";g.lineWidth=S(1.9);
+  g.beginPath();g.moveTo(x0,y0);g.lineTo(x0+len,y0);
+  g.moveTo(x0,y0-S(4.5));g.lineTo(x0,y0+S(4.5));
+  g.moveTo(x0+len,y0-S(4.5));g.lineTo(x0+len,y0+S(4.5));g.stroke();
+  g.fillStyle="#2a3644";g.font=`700 ${S(11)}px ui-monospace,monospace`;
+  g.textAlign="center";g.textBaseline="bottom";haloText(g,"20 NM",x0+len/2,y0-S(5));
+
+  // north arrow, rotated for track up
+  const r=S(16), ax=W-S(26), ay=S(32);
+  g.save();g.translate(ax,ay);g.rotate(-TRK);
+  g.strokeStyle="#2a3644";g.lineWidth=S(1.9);
+  g.beginPath();g.moveTo(0,r);g.lineTo(0,-r*.6);g.stroke();
+  g.fillStyle="#c02020";
+  g.beginPath();g.moveTo(0,-r);g.lineTo(-S(5),-r*.45);g.lineTo(S(5),-r*.45);g.closePath();g.fill();
+  g.restore();
+  g.fillStyle="#2a3644";g.font=`700 ${S(11)}px ui-monospace,monospace`;
+  g.textAlign="center";g.textBaseline="top";haloText(g,"N",ax,ay+r+S(2));
+
+  // The track-up reminder lives in the section header now, at HTML type size.
+  // Repeating it here cost chart space and label room for no added meaning.
+
+  // Frame time, stamped on the chart itself. The band only advances 15 NM
+  // across a loop — about 7% of the chart width — so without a per-frame
+  // time the animation reads as static even though it is stepping correctly.
+  if(frameZ!==undefined){
+    g.textAlign="right";g.textBaseline="top";
+    g.font=`700 ${S(13)}px ui-monospace,monospace`;g.fillStyle="#1d2733";
+    haloText(g,frameZ+"Z",W-S(12),S(11));
+  }
+}
+
+// tap a station to select it -- links map, cameras and text briefing
+mapC.addEventListener("click",e=>{
+  if(!MV) return;
+  const r=mapC.getBoundingClientRect();
+  const px=(e.clientX-r.left)*(mapC.width/r.width), py=(e.clientY-r.top)*(mapC.height/r.height);
+  let best=null,bd=1e9;
+  for(const k in APTS){
+    const d=Math.hypot(MV.X(APTS[k].x,APTS[k].z)-px, MV.Y(APTS[k].x,APTS[k].z)-py);
+    if(d<bd){bd=d;best=k;}
+  }
+  if(bd<34*MDPR){ selectSite(best,true); TEL.log("map_tap",{stn:best}); }
+});
+
+/* ==================================================================== *
+ *  5.  CROSS-SECTION
+ * ==================================================================== */
+const xsC=document.getElementById("xs");
+function drawXSec(){
+  const g=xsC.getContext("2d"),W=xsC.width,H=xsC.height,st=stage();
+  g.setTransform(1,0,0,1,0,0);
+  const padL=S(40),padR=S(12),padT=S(12),padB=S(22);
+  const pw=W-padL-padR,ph=H-padT-padB,MAX=12000;
+  const X=f=>padL+f*pw, Y=ft=>padT+ph*(1-ft/MAX);
+  /* The section now runs from the AEROPLANE to KBBB -- the 45 minutes still to
+     fly -- not from a departure airport that version B never names. f=0 is
+     the cockpit, f=1 is the destination. */
+  const at=f=>({x:AC.x+(APTS.KBBB.x-AC.x)*f, z:AC.z+(APTS.KBBB.z-AC.z)*f});
+  const LEG=D_KBBB;
+
+  g.fillStyle="#fff";g.fillRect(0,0,W,H);
+  const sky=g.createLinearGradient(0,padT,0,padT+ph);
+  sky.addColorStop(0,"#dae7f2");sky.addColorStop(1,"#f0f5f9");
+  g.fillStyle=sky;g.fillRect(padL,padT,pw,ph);
+
+  const CO=170;
+  for(let i=0;i<CO;i++){
+    const f=i/CO,p=at(f),sh=shieldAt(p.x,p.z,st.zulu);
+    const w=wxAt(p.x,p.z),gnd=terrainFt(p.x,p.z),base=gnd+w.ceil;
+    const top=deckTop(base,w.cov);
+    g.fillStyle=`rgba(${Math.round(150-46*sh)},${Math.round(158-48*sh)},${Math.round(168-46*sh)},${.22+.56*w.cov})`;
+    g.fillRect(X(f),Y(top),pw/CO+1,Y(base)-Y(top));
+    g.fillStyle=`rgba(178,186,196,${.16+.14*sh})`;
+    g.fillRect(X(f),Y(10000),pw/CO+1,Y(8200)-Y(10000));
+    if(sh>.20){g.fillStyle=`rgba(70,120,175,${(sh-.20)*.42})`;
+      g.fillRect(X(f),Y(base),pw/CO+1,Y(gnd)-Y(base));}
+    g.fillStyle=`rgba(64,78,94,${.38+.42*w.cov})`;
+    g.fillRect(X(f),Y(base),pw/CO+1,Math.max(1,S(1.7)));
+  }
+  g.beginPath();g.moveTo(X(0),Y(0));
+  for(let i=0;i<=220;i++){const f=i/220,p=at(f);g.lineTo(X(f),Y(terrainFt(p.x,p.z)));}
+  g.lineTo(X(1),Y(0));g.closePath();
+  g.fillStyle="#a8b58c";g.fill();g.strokeStyle="#77855c";g.lineWidth=S(1.4);g.stroke();
+
+  g.font=`600 ${S(10.5)}px ui-monospace,monospace`;g.textAlign="right";g.textBaseline="middle";
+  for(let ft=0;ft<=MAX;ft+=2000){
+    g.strokeStyle="rgba(40,60,80,.14)";g.lineWidth=1;
+    g.beginPath();g.moveTo(padL,Y(ft));g.lineTo(padL+pw,Y(ft));g.stroke();
+    g.fillStyle="#5a6874";g.fillText(ft?(ft/1000)+"k":"SFC",padL-S(5),Y(ft));
+  }
+  g.setLineDash([S(7),S(5)]);g.strokeStyle="#1a5fa8";g.lineWidth=S(2.4);
+  g.beginPath();g.moveTo(X(.02),Y(CRUISE_FT));g.lineTo(X(.98),Y(CRUISE_FT));g.stroke();g.setLineDash([]);
+  g.fillStyle="#1a5fa8";g.font=`700 ${S(11)}px ui-monospace,monospace`;
+  g.textAlign="left";g.textBaseline="bottom";
+  haloText(g,(DETAIL?"planned cruise ":"cruise ")+CRUISE_TXT,X(.03),Y(CRUISE_FT)-S(4));
+
+  // own-ship at the left edge: the section starts where the aeroplane is
+  g.fillStyle="#101a52";
+  g.beginPath();g.moveTo(X(0)+S(10),Y(CRUISE_FT));
+  g.lineTo(X(0)-S(6.5),Y(CRUISE_FT)-S(6.5));
+  g.lineTo(X(0)-S(6.5),Y(CRUISE_FT)+S(6.5));g.closePath();g.fill();
+  /* The "NM to the rain" callout that used to print here is DELETED. It was a
+     number the scenario does not contain: it resolved to 51 NM, which puts the
+     edge 16.5 NM west of KBBB against the advisory's authored "10 to 15 NM
+     west of KBBB", and it was a pure function of the assumed GS=90 via
+     D_KBBB=67.5. This page's own rule is that the participant sees times, not
+     distances, precisely so the ground-speed assumption is never inherited --
+     and printed beside "45 min to KBBB" in the status strip it handed a
+     numerate pilot 90 kt and a time-to-intercept, while a non-numerate pilot
+     got nothing. The echo already drawn on the section shows where the rain is
+     without asserting a figure. */
+  g.textBaseline="top";g.font=`700 ${S(11.5)}px ui-monospace,monospace`;
+  // left end is the cockpit now, not a departure field
+  g.textAlign="left";g.fillStyle="#2a3644";g.fillText("YOU",padL,padT+ph+S(4));
+  g.textAlign="right";g.fillStyle="#0f3557";g.fillText("KBBB",padL+pw,padT+ph+S(4));
+  if(DETAIL){
+  }
+  // The caption is HTML beneath the canvas, not canvas text: gated on DETAIL it
+  // vanished on exactly the device the requirements name as primary, leaving an
+  // uncaptioned section with no statement of its datum.
+}
+
+/* ==================================================================== *
+ *  6.  WEATHER CAMERAS  (FAA WeatherCams pattern)
+ *      Latest image beside a clear-day reference, with landmark distance
+ *      and elevation callouts so visibility can be judged by which
+ *      landmarks are still visible.
+ * ==================================================================== */
+const cv=document.getElementById("gl");
+let gl=null,GLOK=false;
+try{gl=cv.getContext("webgl2",{antialias:true,alpha:false,preserveDrawingBuffer:true});}catch(e){}
+GLOK=!!gl;
+if(!GLOK) document.getElementById("noGL").classList.add("on");
+
+const NOISE=`
+float h21(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float h31(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+float vn2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+ return mix(mix(h21(i),h21(i+vec2(1,0)),f.x),mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x),f.y);}
+float vn3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+ float a=mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x),f.y);
+ float b=mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x),f.y);
+ return mix(a,b,f.z);}
+float fbm2f(vec2 p){float s=0.0,a=0.5;for(int i=0;i<5;i++){s+=a*vn2(p);p*=2.03;a*=0.5;}return s;}
+float fbm3f(vec3 p){float s=0.0,a=0.5;for(int i=0;i<4;i++){s+=a*vn3(p);p*=2.07;a*=0.5;}return s;}`;
+const FIELD=`
+uniform vec4 uStn[4]; uniform float uMin; uniform float uClear;
+void field(vec2 p,out float ceilFt,out float cov){
+ float ws=0.0,c=0.0,v=0.0;
+ for(int i=0;i<4;i++){float d=max(distance(p,uStn[i].xy),1.0);float w=1.0/(d*d);
+  ws+=w;c+=w*uStn[i].z;v+=w*uStn[i].w;}
+ ceilFt=mix(c/ws,9000.0,uClear); cov=mix(v/ws,0.10,uClear);}
+/* Same bounded shower area as the 2D radar, and the same wave constants. This
+   copy had BOTH a different bow (6.5/0.055 against the chart's 3.0/0.018) and
+   no extent along the front at all, so the rendered sky and the plotted
+   mosaic described different weather from the same instant. */
+float shield(vec2 p){
+ float cx=${SHIELD_X0.toFixed(2)}+${SHIELD_SPD.toFixed(1)}*(uMin/60.0)
+   +3.0*sin(p.y*0.018)+2.0*sin(p.y*0.009+1.7);
+ float d=(p.x-cx)/11.0;
+ float dz=(p.y-${APTS.KBBB.z.toFixed(2)})/${SHIELD_ALONG.toFixed(1)};
+ return exp(-d*d)*exp(-dz*dz*dz*dz)*(1.0-uClear);}
+float terrFt(vec2 p){
+ return 950.0+420.0*(fbm2f(p*0.018+vec2(11.3,7.1))-0.5)*2.0
+            + 90.0*(fbm2f(p*0.07 +vec2(3.0,9.0))-0.5)*2.0;}`;
+const FTNM=(1/FT_PER_NM).toFixed(9);
+
+const SH={
+sky_v:`#version 300 es
+layout(location=0) in vec2 aP; out vec2 vUv;
+void main(){vUv=aP;gl_Position=vec4(aP,0.9999,1.0);}`,
+sky_f:`#version 300 es
+precision highp float;
+in vec2 vUv; out vec4 o;
+uniform mat4 uInvVP; uniform vec3 uEye; uniform vec3 uSun; uniform float uVis; uniform float uSteps;
+${NOISE}
+${FIELD}
+vec3 sunCol=vec3(1.0,0.94,0.84);
+vec3 skyCol(vec3 d,float haze){
+ float h=clamp(d.y*0.5+0.5,0.0,1.0);
+ vec3 c=mix(vec3(0.68,0.75,0.83),vec3(0.17,0.36,0.65),pow(h,0.72));
+ float sd=max(dot(d,uSun),0.0);
+ // Kept deliberately dim. The disc is attenuated by cloud transmittance
+ // downstream, but at the old intensity even 90% attenuation left a crisp
+ // sun visible through an overcast deck — which no pilot would accept.
+ c+=sunCol*pow(sd,1400.0)*2.2;              // disc
+ c+=sunCol*pow(sd,40.0)*0.30;               // tight bloom around it
+ c+=sunCol*pow(sd,5.0)*0.12;                // broad forward scatter
+ c=mix(c,vec3(0.76,0.79,0.82),exp(-max(d.y,0.0)*5.4)*haze);
+ return c;}
+float deck(vec3 p){
+ float cf,cov; field(p.xz,cf,cov);
+ float baseFt=terrFt(p.xz)+cf;
+ float topFt=baseFt+${DECK_T0.toFixed(1)}+${DECK_TCOV.toFixed(1)}*cov;
+ float yFt=p.y*${FT_PER_NM.toFixed(2)};
+ if(yFt<baseFt||yFt>topFt) return 0.0;
+ float hh=(yFt-baseFt)/(topFt-baseFt);
+ float shape=smoothstep(0.0,0.22,hh)*(1.0-smoothstep(0.55,1.0,hh));
+ float n=fbm3f(vec3(p.x*0.55,yFt*0.00045,p.z*0.55));
+ float c=clamp(cov+0.20*shield(p.xz),0.0,1.0);
+ return smoothstep(1.0-c-0.16,1.0-c+0.24,n)*shape;}
+void main(){
+ vec4 p0=uInvVP*vec4(vUv,-1.0,1.0),p1=uInvVP*vec4(vUv,1.0,1.0);
+ vec3 d=normalize(p1.xyz/p1.w-p0.xyz/p0.w);
+ float haze=clamp(1.6/max(uVis,1.0),0.0,1.0);
+ vec3 col=skyCol(d,haze);
+ if(d.y>-0.03){
+  float trans=1.0,lit=0.0;
+  if(d.y>0.0008){
+   float cf,cov; field(uEye.xz,cf,cov);
+   float baseFt=terrFt(uEye.xz)+cf;
+   float topFt=baseFt+${DECK_T0.toFixed(1)}+${DECK_TCOV.toFixed(1)}*cov;
+   float eyeFt=uEye.y*${FT_PER_NM.toFixed(2)};
+   float t0=max((${FTNM}*(baseFt-eyeFt))/d.y,0.0);
+   float t1=min((${FTNM}*(topFt-eyeFt))/d.y,110.0);
+   if(t1>t0&&t0<110.0){
+    int N=int(uSteps); float dt=(t1-t0)/float(N);
+    for(int i=0;i<48;i++){
+     if(i>=N) break;
+     vec3 sp=uEye+d*(t0+(float(i)+0.5)*dt);
+     float den=deck(sp);
+     if(den>0.001){
+      float above=deck(sp+vec3(0.0,${FTNM}*700.0,0.0));
+      float b=mix(0.95,0.42,clamp(above*1.6,0.0,1.0));
+      float a=1.0-exp(-den*dt*2.4);
+      lit+=trans*a*b; trans*=1.0-a;
+      if(trans<0.02) break;}}}}
+  float horiz=1.0-smoothstep(0.0008,0.085,d.y);
+  lit=mix(lit,max(lit,0.44),horiz); trans=mix(trans,0.0,horiz);
+  float sh=shield(uEye.xz+d.xz*30.0);
+  vec3 cc=mix(vec3(0.93,0.95,0.97),vec3(0.44,0.47,0.52),clamp(sh*0.85,0.0,1.0));
+  col=col*trans+cc*lit;}
+ o=vec4(col,1.0);}`,
+terr_v:`#version 300 es
+layout(location=0) in vec3 aP; layout(location=1) in vec3 aN;
+uniform mat4 uVP; out vec3 vW; out vec3 vN;
+void main(){vW=aP;vN=aN;gl_Position=uVP*vec4(aP,1.0);}`,
+terr_f:`#version 300 es
+precision highp float;
+in vec3 vW; in vec3 vN; out vec4 o;
+uniform vec3 uEye; uniform vec3 uSun; uniform float uVis;
+${NOISE}
+${FIELD}
+void main(){
+ vec3 n=normalize(vN);
+ // phase offset keeps a field boundary from landing dead centre in the frame
+ vec2 P=vW.xz+vec2(0.37,0.21);
+ vec2 cell=floor(P);          // aligned to the road grid, so field edges
+                              // land on a track instead of reading as a seam
+ float cid=h21(cell),cid2=h21(cell+7.3);
+ vec3 crop=mix(vec3(0.33,0.37,0.21),vec3(0.42,0.44,0.25),cid);   // narrow range:
+ crop=mix(crop,vec3(0.38,0.34,0.23),step(0.88,cid2));            // wide made cell
+                                                                 // edges read as seams
+ float wood=fbm2f(P*0.34);
+ crop=mix(crop,vec3(0.15,0.23,0.14),smoothstep(0.56,0.74,wood));
+ float pond=fbm2f(P*0.9+vec2(31.0,17.0));
+ crop=mix(crop,vec3(0.16,0.25,0.31),smoothstep(0.76,0.83,pond));
+ // roads run along the field EDGES, so every field boundary carries a track
+ vec2 dEdge=vec2(0.5)-abs(fract(P)-vec2(0.5));
+ crop=mix(crop,vec3(0.35,0.34,0.31),(1.0-smoothstep(0.0,0.012,min(dEdge.x,dEdge.y)))*0.55);
+ // Near-field detail. A camera 60 ft up sees only a couple of field cells
+ // before the horizon, so without this the foreground is a flat colour block.
+ crop*=0.84+0.32*fbm2f(P*42.0);
+ crop*=0.93+0.14*(sin(P.x*230.0+P.y*80.0)*0.5+0.5);      // crop rows
+ float lam=clamp(dot(n,uSun),0.0,1.0);
+ float sh=shield(P);
+ float cf,cov; field(P,cf,cov);
+ vec3 c=crop*(0.48+0.60*lam)*mix(1.0,0.62,cov);   // lift ambient: overcast
+                                                  // ground was reading near-black
+ c=mix(c,c*vec3(0.52,0.57,0.63),sh*0.72);
+ float dist=distance(uEye,vW);
+ float fog=1.0-exp(-dist*(1.55/max(uVis,1.0)));
+ vec3 hazeC=mix(vec3(0.74,0.77,0.80),vec3(0.46,0.49,0.53),clamp(cov*0.9+sh*0.4,0.0,1.0));
+ o=vec4(mix(c,hazeC,clamp(fog,0.0,1.0)),1.0);}`,
+
+/* Landmark objects -- tree lines, a grain elevator, a radio mast. They are
+   what the distance/elevation callouts actually point at, and because they
+   fade with the same visibility term, how many remain visible IS the
+   visibility read the WeatherCams comparison is meant to give. */
+lm_v:`#version 300 es
+layout(location=0) in vec3 aP; layout(location=1) in vec3 aC;
+uniform mat4 uVP; out vec3 vW; out vec3 vC;
+void main(){vW=aP;vC=aC;gl_Position=uVP*vec4(aP,1.0);}`,
+lm_f:`#version 300 es
+precision highp float;
+in vec3 vW; in vec3 vC; out vec4 o;
+uniform vec3 uEye; uniform float uVis;
+${NOISE}
+${FIELD}
+void main(){
+ float sh=shield(vW.xz);
+ float cf,cov; field(vW.xz,cf,cov);
+ vec3 c=vC*mix(1.0,0.62,cov);
+ float dist=distance(uEye,vW);
+ float fog=1.0-exp(-dist*(1.55/max(uVis,1.0)));
+ vec3 hazeC=mix(vec3(0.74,0.77,0.80),vec3(0.46,0.49,0.53),clamp(cov*0.9+sh*0.4,0.0,1.0));
+ o=vec4(mix(c,hazeC,clamp(fog,0.0,1.0)),1.0);}`
+};
+let P={},BUF={},TEXT=190;
+function mkProg(vs,fs){
+  const c=(t,s)=>{const sh=gl.createShader(t);gl.shaderSource(sh,s);gl.compileShader(sh);
+    if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(sh),s);return sh;};
+  const p=gl.createProgram();
+  gl.attachShader(p,c(gl.VERTEX_SHADER,vs));gl.attachShader(p,c(gl.FRAGMENT_SHADER,fs));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS))console.error(gl.getProgramInfoLog(p));
+  const u=new Proxy({},{get:(t,k)=>(k in t?t[k]:(t[k]=gl.getUniformLocation(p,k)))});
+  return {p,u};}
+function buildGL(){
+  P.sky=mkProg(SH.sky_v,SH.sky_f);P.terr=mkProg(SH.terr_v,SH.terr_f);
+  P.lm=mkProg(SH.lm_v,SH.lm_f);
+  BUF.quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,BUF.quad);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const N=190,span=TEXT*2,step=span/N;
+  // terrain patch centred on the leg still to fly: cockpit to destination
+  const cx=(AC.x+APTS.KBBB.x)/2,cz=(AC.z+APTS.KBBB.z)/2;
+  const pos=new Float32Array((N+1)*(N+1)*3),nrm=new Float32Array((N+1)*(N+1)*3),Hh=new Float32Array((N+1)*(N+1));
+  for(let j=0;j<=N;j++)for(let i=0;i<=N;i++){
+    const x=cx-TEXT+i*step,z=cz-TEXT+j*step;Hh[j*(N+1)+i]=ftNM(terrainFt(x,z));}
+  for(let j=0;j<=N;j++)for(let i=0;i<=N;i++){
+    const k=j*(N+1)+i,x=cx-TEXT+i*step,z=cz-TEXT+j*step;
+    pos[k*3]=x;pos[k*3+1]=Hh[k];pos[k*3+2]=z;
+    const hl=Hh[j*(N+1)+Math.max(0,i-1)],hr=Hh[j*(N+1)+Math.min(N,i+1)];
+    const hd=Hh[Math.max(0,j-1)*(N+1)+i],hu=Hh[Math.min(N,j+1)*(N+1)+i];
+    let nx=hl-hr,ny=2*step,nz=hd-hu;const L=Math.hypot(nx,ny,nz)||1;
+    nrm[k*3]=nx/L;nrm[k*3+1]=ny/L;nrm[k*3+2]=nz/L;}
+  const idx=new Uint32Array(N*N*6);let q=0;
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){
+    const a=j*(N+1)+i,b=a+1,c2=a+(N+1),d=c2+1;
+    idx[q++]=a;idx[q++]=c2;idx[q++]=b;idx[q++]=b;idx[q++]=c2;idx[q++]=d;}
+  BUF.terr={vao:gl.createVertexArray(),n:idx.length};
+  gl.bindVertexArray(BUF.terr.vao);
+  let vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);
+  gl.bufferData(gl.ARRAY_BUFFER,pos,gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,3,gl.FLOAT,false,0,0);
+  let nb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,nb);
+  gl.bufferData(gl.ARRAY_BUFFER,nrm,gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,3,gl.FLOAT,false,0,0);
+  let ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,idx,gl.STATIC_DRAW);
+  gl.bindVertexArray(null);
+}
+function sunVec(zulu){
+  const el=(zulu<1940?30:25)*Math.PI/180, az=(zulu<1940?236:242)*Math.PI/180;
+  return [Math.sin(az)*Math.cos(el),Math.sin(el),Math.cos(az)*Math.cos(el)];}
+
+// Camera on a 60 ft mast with a ~36° lens. Over flat terrain a wide lens at
+// eye height renders every landmark sub-pixel, so nothing can be judged.
+/* A 36-degree lens covered only 144 of 360 degrees across four views and
+   rendered distant objects sub-pixel. Real installations use wide lenses and
+   sit the horizon high enough to keep the airport surface in frame, because
+   wet runway, spray and sock deflection are the things a photograph adds. */
+const CAM_H_FT=25, CAM_FOV=1.50, CAM_PITCH=-0.08;
+
+// Angular size is height/distance, so over flat terrain only near objects or
+// tall structures resolve at all. These are the reference points the callouts
+// name, chosen so the far one is lost first as visibility drops.
+const LM_SPEC=[
+  {d:0.28, h:55,  w:0.042, c:[0.14,0.21,0.14], n:"Tree line", seg:18},
+  {d:1.05, h:330, w:0.006, c:[0.80,0.38,0.32], n:"Radio mast"},
+  {d:3.10, h:540, w:0.008, c:[0.66,0.67,0.70], n:"Tower"}
+];
+// Airport furniture in the near field. A weather cam looks across a real
+// airport, and the foreground objects are the strongest realism cue.
+// Widths are HALF-widths in NM. 0.02 NM is 120 ft, so these have to be small:
+// an earlier pass produced a 27 ft wide windsock and 240 ft hangars.
+const FIELD_OBJ=[
+  {d:0.17, off:-19, h:28, w:0.0070, c:[0.78,0.77,0.73]},  // hangar,  85 ft wide
+  {d:0.21, off: 15, h:24, w:0.0055, c:[0.71,0.71,0.68]},  // hangar,  67 ft wide
+  {d:0.05, off:  4, h:17, w:0.00012,c:[0.72,0.72,0.70]},  // windsock pole
+  {d:0.05, off:  4, h:17, w:0.00075,c:[0.92,0.52,0.10], base:12}, // the sock
+  {d:0.13, off:-10, h:12, w:0.00022,c:[0.88,0.88,0.86]},  // apron light
+  {d:0.13, off: 11, h:12, w:0.00022,c:[0.88,0.88,0.86]}
+];
+function eyeMatrices(pos,bearRad,pitch,fov,asp){
+  const ctr=[pos[0]+Math.sin(bearRad)*10, pos[1]+10*Math.tan(pitch), pos[2]+Math.cos(bearRad)*10];
+  return {V:M4.look(pos,ctr,[0,1,0]),Pm:M4.persp(fov,asp,0.003,400),eye:pos};
+}
+function camMatrices(site,bearDeg,asp){
+  const a=APTS[site];
+  const pos=[a.x,ftNM(terrainFt(a.x,a.z)+CAM_H_FT),a.z];
+  // aimed slightly above the horizon, the way a sky-condition camera is set
+  return eyeMatrices(pos,bearDeg*Math.PI/180,CAM_PITCH,CAM_FOV,asp);
+}
+function renderCam(site,bearDeg,clear,sid,zulu){
+  const asp=cv.width/cv.height;
+  const {V,Pm,eye}=camMatrices(site,bearDeg,asp);
+  const VP=M4.mul(Pm,V);
+  renderScene(VP,eye,clear,sid,zulu);
+  return VP;
+}
+// scene draw, shared by the weather cameras and the out-the-window view
+function renderScene(VP,eye,clear,sid,zulu){
+  const lw=wxAt(eye[0],eye[2]);
+  const vis=clear?12:lw.vis;
+  const sun=sunVec(zulu), stn=stnUniform(), mins=zuluDiff(zulu,SHIELD_T0);
+  gl.viewport(0,0,cv.width,cv.height);
+  gl.disable(gl.DEPTH_TEST);gl.depthMask(false);gl.disable(gl.BLEND);
+  gl.useProgram(P.sky.p);
+  gl.bindBuffer(gl.ARRAY_BUFFER,BUF.quad);
+  gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+  gl.uniformMatrix4fv(P.sky.u.uInvVP,false,M4.inv(VP));
+  gl.uniform3fv(P.sky.u.uEye,eye);gl.uniform3fv(P.sky.u.uSun,sun);
+  // fewer marching steps now that each tile carries ~3x the pixels
+  gl.uniform1f(P.sky.u.uVis,vis);gl.uniform1f(P.sky.u.uSteps,22);
+  gl.uniform4fv(P.sky.u["uStn[0]"],stn);gl.uniform1f(P.sky.u.uMin,mins);
+  gl.uniform1f(P.sky.u.uClear,clear?1:0);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+  gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.clear(gl.DEPTH_BUFFER_BIT);
+  gl.useProgram(P.terr.p);
+  gl.uniformMatrix4fv(P.terr.u.uVP,false,VP);
+  gl.uniform3fv(P.terr.u.uEye,eye);gl.uniform3fv(P.terr.u.uSun,sun);
+  gl.uniform1f(P.terr.u.uVis,vis);
+  gl.uniform4fv(P.terr.u["uStn[0]"],stn);gl.uniform1f(P.terr.u.uMin,mins);
+  gl.uniform1f(P.terr.u.uClear,clear?1:0);
+  gl.bindVertexArray(BUF.terr.vao);
+  gl.drawElements(gl.TRIANGLES,BUF.terr.n,gl.UNSIGNED_INT,0);
+  gl.bindVertexArray(null);
+
+  gl.useProgram(P.lm.p);
+  gl.uniformMatrix4fv(P.lm.u.uVP,false,VP);
+  gl.uniform3fv(P.lm.u.uEye,eye);gl.uniform1f(P.lm.u.uVis,vis);
+  gl.uniform4fv(P.lm.u["uStn[0]"],stn);gl.uniform1f(P.lm.u.uMin,mins);
+  gl.uniform1f(P.lm.u.uClear,clear?1:0);
+  gl.bindVertexArray(BUF.lm.vao);
+  gl.drawArrays(gl.TRIANGLES,0,BUF.lm.n);
+  gl.bindVertexArray(null);
+}
+// project a world point into 0..1 image coords
+function projectPt(VP,x,y,z){
+  const cx=VP[0]*x+VP[4]*y+VP[8]*z+VP[12];
+  const cy=VP[1]*x+VP[5]*y+VP[9]*z+VP[13];
+  const cw=VP[3]*x+VP[7]*y+VP[11]*z+VP[15];
+  if(cw<=0.001) return null;
+  return {u:cx/cw*0.5+0.5, v:-cy/cw*0.5+0.5};
+}
+
+/* Camera-lens and sensor pass. A clean render reads as computer graphics;
+   what makes an image look photographic is the optics and the sensor --
+   vignetting, grain, a slight warm cast and the softness of a weather-proof
+   housing. Cheap 2D compositing, no per-pixel loop. */
+let GRAIN=null;
+function grainTile(){
+  if(GRAIN) return GRAIN;
+  const n=96,t=document.createElement("canvas");t.width=t.height=n;
+  const g=t.getContext("2d"),d=g.createImageData(n,n);
+  for(let i=0;i<n*n;i++){
+    const v=128+(Math.random()-0.5)*74;
+    d.data[i*4]=d.data[i*4+1]=d.data[i*4+2]=v; d.data[i*4+3]=255;
+  }
+  g.putImageData(d,0,0); GRAIN=t; return t;
+}
+function photoFinish(g,W,H,clear){
+  g.save();
+  // sensor grain -- heavier on the live image than the archived clear-day one
+  g.globalCompositeOperation="overlay";
+  g.globalAlpha=clear?0.05:0.085;
+  const p=g.createPattern(grainTile(),"repeat");
+  g.fillStyle=p;g.fillRect(0,0,W,H);
+  // lens vignette
+  g.globalCompositeOperation="multiply";g.globalAlpha=1;
+  const r=Math.hypot(W,H)/2;
+  const v=g.createRadialGradient(W/2,H/2,r*0.42,W/2,H/2,r);
+  v.addColorStop(0,"rgba(255,255,255,1)");
+  v.addColorStop(1,"rgba(178,182,190,1)");
+  g.fillStyle=v;g.fillRect(0,0,W,H);
+  // faint warm cast through the housing glass
+  g.globalCompositeOperation="soft-light";g.globalAlpha=0.30;
+  g.fillStyle=clear?"#8fa8c0":"#b0a898";g.fillRect(0,0,W,H);
+  g.restore();
+}
+
+/* ---- out the window ---------------------------------------------------
+   Version B states the pilot's own condition outright -- "in visual conditions
+   below the cloud layer" -- so the windscreen is the one piece of imagery the
+   document actually implies, and it is the only source in front of the pilot
+   that carries no reporting delay. There is no preflight view any more: the
+   scenario begins airborne.                                               */
+const otwC=document.getElementById("otw");
+/* img/otw_enroute.jpg — from the cockpit at 3,500 ft on course, 2000Z.
+   Present, it replaces the rendered view; absent, the renderer takes over. */
+const OTW_PHOTO={};
+function probeOtwPhotos(done){
+  const im=new Image();
+  im.onload=()=>{OTW_PHOTO.enroute=im; done();};
+  im.onerror=()=>done();
+  im.src="img/otw_enroute.jpg";
+}
+
+function drawOTW(){
+  if(!otwC.width) return;
+  const st=stage();
+  const ph=OTW_PHOTO.enroute;
+  if(ph){
+    const g=otwC.getContext("2d"), W=otwC.width, H=otwC.height;
+    // Math.MIN, not max: max is "cover" and crops whatever does not fit. The
+    // canvas is now sized to this photo's own ratio (see layoutCanvases), so
+    // contain and cover coincide and the frame is drawn whole either way --
+    // but if the two ever drift, contain shows all of it rather than trimming.
+    const sc=Math.min(W/ph.width,H/ph.height), dw=ph.width*sc, dh=ph.height*sc;
+    g.clearRect(0,0,W,H);
+    g.drawImage(ph,(W-dw)/2,(H-dh)/2,dw,dh);
+    document.getElementById("otwTag").textContent=st.zulu+"Z";
+    document.getElementById("otwNote").textContent=
+      `Looking ahead on course from ${CRUISE_TXT}, in visual conditions below the cloud layer.`;
+    return;
+  }
+  if(!GLOK) return;
+  const asp=otwC.width/otwC.height;
+  const p=acPosAt();
+  const pos=[p.x,ftNM(CRUISE_FT),p.z], bear=RTE_HDG, pitch=-0.02, fov=1.05;
+  const saveW=cv.width, saveH=cv.height;
+  cv.width=otwC.width; cv.height=otwC.height;
+  const {V,Pm,eye}=eyeMatrices(pos,bear,pitch,fov,asp);
+  renderScene(M4.mul(Pm,V),eye,false,st.id,st.zulu);
+  const g=otwC.getContext("2d");
+  g.clearRect(0,0,otwC.width,otwC.height);
+  g.drawImage(cv,0,0);
+  // Rain on the glass is driven by the data, not by a constant. The stronger
+  // showers are 10-15 NM west of KBBB, well ahead — but both reporting
+  // stations have light rain, and stratiform -RA commonly returns below the
+  // plotted dBZ threshold. So: light rain here, heavier only inside the band.
+  // Painting a downpour at the aeroplane would contradict both the radar the
+  // participant is shown and the document's "visual conditions".
+  rainOnGlass(g,otwC.width,otwC.height,0.20+0.62*shieldAt(p.x,p.z,st.zulu));
+  cv.width=saveW; cv.height=saveH;
+  document.getElementById("otwTag").textContent=st.zulu+"Z";
+  document.getElementById("otwNote").textContent=
+    "Looking ahead on course from 3,500 ft, in visual conditions below the cloud layer.";
+}
+// light rain on the windscreen; the cockpit is the only place this belongs
+function rainOnGlass(g,W,H,amt){
+  if(amt<=0.02) return;
+  g.save();
+  // R2 sequence: 0.618/0.382 advance in lockstep and stack every streak onto
+  // one diagonal. These two constants are genuinely decorrelated in 2D.
+  const n=Math.round(30+150*amt);
+  g.strokeStyle=`rgba(206,226,246,${(0.16+0.30*amt).toFixed(3)})`;
+  g.lineWidth=Math.max(1,H*(0.0022+0.0022*amt));
+  for(let i=1;i<=n;i++){
+    const x=((i*0.7548776662)%1)*W, y=((i*0.5698402909)%1)*H;
+    const L=(0.018+0.048*amt+0.035*((i*0.4194)%1))*H;
+    g.beginPath();g.moveTo(x,y);g.lineTo(x+L*0.24,y-L);g.stroke();
+  }
+  const beads=Math.round(6+34*amt);
+  for(let i=1;i<=beads;i++){
+    const s=(i*0.7548776662)%1, s2=(i*0.5698402909)%1;
+    const r=(1.0+2.2*s2)*(H*0.0035);
+    g.fillStyle=`rgba(226,240,254,${(0.10+0.14*amt).toFixed(3)})`;
+    g.beginPath();g.arc(s*W,s2*H*0.82,r,0,7);g.fill();
+  }
+  g.restore();
+}
+
+/* Two views, not four: down the runway the wind favours, and across the
+   field. Named the way real sites name them — by runway, not by compass
+   point — and labelled with the true heading. */
+function camViews(site){
+  const hd=APTS[site].rwy;
+  return [{b:hd, n:`Runway ${String(Math.round(hd/10)).padStart(2,"0")}`},
+          {b:(hd+90)%360, n:"Across the field"}];
+}
+const CAM_DIRS=[{b:0},{b:90},{b:180},{b:270}];   // scenery generation only
+// WeatherCams marks landmarks with distance and elevation so a pilot can tell
+// how far they can actually see. Generated from the real terrain field.
+function landmarksFor(site,bearDeg){
+  const a=APTS[site], out=[];
+  LM_SPEC.forEach((sp,i)=>{
+    const off=[-6,5,-2][i];
+    const b=(bearDeg+off)*Math.PI/180;
+    const x=a.x+Math.sin(b)*sp.d, z=a.z+Math.cos(b)*sp.d;
+    out.push({x,z,gndFt:terrainFt(x,z),topFt:terrainFt(x,z)+sp.h,d:sp.d,spec:sp,bear:b});
+  });
+  return out;
+}
+// Version B has two fields, so the whole camera layer is built for two.
+const CAM_SITES=["KBBB","KCCC"];
+// one static buffer holding every landmark at every site and bearing
+function buildLandmarks(){
+  const V=[];
+  const push=(x,y,z,c)=>V.push(x,y,z,c[0],c[1],c[2]);
+  for(const site of CAM_SITES){
+    for(const d of CAM_DIRS){
+      for(const lm of landmarksFor(site,d.b)){
+        const sp=lm.spec;
+        const px=Math.cos(lm.bear), pz=-Math.sin(lm.bear);   // face the camera
+        const y0=ftNM(lm.gndFt-6);
+        // A tree line drawn as one quad reads as a wall, so it is built from
+        // segments of jittered height and tone.
+        const N=sp.seg||1;
+        for(let k=0;k<N;k++){
+          const t0=(k/N)*2-1, t1=((k+1)/N)*2-1;
+          const j=sp.seg ? 0.55+0.45*hash2(lm.x*13+k*7.3, lm.z*11+k*3.1) : 1;
+          const shade=sp.seg ? 0.82+0.30*hash2(lm.z*5+k*2.7, lm.x*9+k*1.3) : 1;
+          const c=[sp.c[0]*shade, sp.c[1]*shade, sp.c[2]*shade];
+          const y1=ftNM(lm.gndFt+sp.h*j);
+          const ax=lm.x+px*sp.w*t0, az=lm.z+pz*sp.w*t0;
+          const bx=lm.x+px*sp.w*t1, bz=lm.z+pz*sp.w*t1;
+          push(ax,y0,az,c);push(bx,y0,bz,c);push(bx,y1,bz,c);
+          push(ax,y0,az,c);push(bx,y1,bz,c);push(ax,y1,az,c);
+        }
+      }
+    }
+  }
+  // airport furniture, drawn for every site and bearing
+  for(const site of CAM_SITES){
+    const a=APTS[site];
+    for(const d of CAM_DIRS){
+      for(const ob of FIELD_OBJ){
+        const b=(d.b+ob.off)*Math.PI/180;
+        const x=a.x+Math.sin(b)*ob.d, z=a.z+Math.cos(b)*ob.d;
+        const px=Math.cos(b), pz=-Math.sin(b);
+        const gnd=terrainFt(x,z), y0=ftNM(gnd+(ob.base||-4)), y1=ftNM(gnd+ob.h);
+        const ax=x+px*ob.w, az=z+pz*ob.w, bx=x-px*ob.w, bz=z-pz*ob.w;
+        push(ax,y0,az,ob.c);push(bx,y0,bz,ob.c);push(bx,y1,bz,ob.c);
+        push(ax,y0,az,ob.c);push(bx,y1,bz,ob.c);push(ax,y1,az,ob.c);
+      }
+    }
+  }
+  // --- runway: a flat quad on the ground, laid along the published heading ---
+  for(const site of CAM_SITES){
+    const a=APTS[site], hd=a.rwy*Math.PI/180;
+    const dx=Math.sin(hd), dz=Math.cos(hd);          // along
+    const px=Math.cos(hd), pz=-Math.sin(hd);         // across
+    const L=ftNM(a.rwyLen)/2, Wd=ftNM(100)/2;
+    const ox=a.x+px*0.055, oz=a.z+pz*0.055;          // offset off the cam mast
+    const y=ftNM(terrainFt(ox,oz)+1.2);
+    const c=[0.34,0.34,0.35];
+    const cor=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([u,v])=>
+      [ox+dx*L*v+px*Wd*u, y, oz+dz*L*v+pz*Wd*u]);
+    push(cor[0][0],y,cor[0][2],c);push(cor[1][0],y,cor[1][2],c);push(cor[2][0],y,cor[2][2],c);
+    push(cor[0][0],y,cor[0][2],c);push(cor[2][0],y,cor[2][2],c);push(cor[3][0],y,cor[3][2],c);
+  }
+  // --- scattered tree clusters, deterministic so every session matches ---
+  for(const site of CAM_SITES){
+    const a=APTS[site];
+    for(let i=0;i<64;i++){
+      const r1=hash2(i*3.7+a.x, i*1.9+a.z), r2=hash2(i*5.1+a.z, i*2.3+a.x);
+      const bear=r1*Math.PI*2, dist=0.35+r2*2.6;
+      const x=a.x+Math.sin(bear)*dist, z=a.z+Math.cos(bear)*dist;
+      const px=Math.cos(bear), pz=-Math.sin(bear);
+      const gnd=terrainFt(x,z);
+      const h=34+26*hash2(i*7.3,a.x), wq=0.0035+0.004*hash2(a.z,i*4.1);
+      const sh=0.80+0.35*hash2(i*2.1,i*6.3);
+      const c=[0.15*sh,0.23*sh,0.15*sh];
+      const y0=ftNM(gnd-4), y1=ftNM(gnd+h);
+      push(x+px*wq,y0,z+pz*wq,c);push(x-px*wq,y0,z-pz*wq,c);push(x-px*wq,y1,z-pz*wq,c);
+      push(x+px*wq,y0,z+pz*wq,c);push(x-px*wq,y1,z-pz*wq,c);push(x+px*wq,y1,z+pz*wq,c);
+    }
+  }
+  BUF.lm={vao:gl.createVertexArray(),n:V.length/6};
+  gl.bindVertexArray(BUF.lm.vao);
+  const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(V),gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,3,gl.FLOAT,false,24,0);
+  gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,3,gl.FLOAT,false,24,12);
+  gl.bindVertexArray(null);
+}
+// Directional placards were removed: telling the participant which way the
+// weather lies is interpretation the document does not supply.
+function dirNote(){ return ""; }
+
+/* Opens on the DESTINATION, which is the airport the question is about.
+   With one time point there is no T1/T2 asymmetry left for this to create. */
+let selSite="KBBB";
+const camGrid=document.getElementById("camGrid");
+const siteTabs=document.getElementById("siteTabs");
+
+function buildSiteTabs(){
+  siteTabs.innerHTML=CAM_SITES.map(k=>{
+    const m=obsOf(k), cat=flightCat(m.plot.ceil,m.plot.vis);
+    const role=APTS[k].role==="dest"?"destination":"alternate";
+    /* The category is named, not just coloured. Below 760px the chart draws no
+       category text at all (DETAIL is false), so without this the only carrier
+       of VFR/MVFR/IFR on a phone is hue -- and VFR green against IFR red is the
+       canonical deuteranopia confusion. A participant who cannot separate them
+       would read the chart with the destination's condition missing. */
+    return `<button class="siteTab ${k===selSite?"on":""}" data-site="${k}">
+      <span class="cd" style="background:${CATC[cat]}"></span>
+      <span>${k}<span class="sub">${role} · ${cat}</span></span></button>`;
+  }).join("");
+  siteTabs.querySelectorAll(".siteTab").forEach(b=>b.addEventListener("click",()=>{
+    selectSite(b.dataset.site,false);
+  }));
+}
+function selectSite(k,fromMap){
+  selSite=k; selStn=k;
+  TEL.log("cam_site",{site:k,fromMap:!!fromMap});
+  buildSiteTabs(); drawCams(); drawMap();
+  if(fromMap) document.getElementById("secCam").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ---- aerodrome camera imagery -----------------------------------------
+   img/cam_<SITE>.jpg for the two fields version B names. Each frame's sky
+   matches that field's reported condition: KBBB the overcast, KCCC the
+   broken deck with gaps. Anything absent falls back to the rendered view. */
+const CAM_PHOTO={};
+// Synthetic imagery generated to match each field's reported conditions.
+// Labelled as such: a participant must never take a generated frame for a
+// photograph of a real place.
+/* No per-frame note. The author has removed the simulated-imagery statements
+   from the participant-facing page; provenance stays in img/CREDITS.json. */
+const CAM_CREDIT={ KBBB:{note:""}, KCCC:{note:""} };
+function probeCamPhotos(done){
+  let left=CAM_SITES.length;
+  CAM_SITES.forEach(k=>{
+    const src="img/cam_"+k+".jpg", im=new Image();
+    im.onload=()=>{CAM_PHOTO[k]={src,...CAM_CREDIT[k]}; if(!--left) done();};
+    im.onerror=()=>{ if(!--left) done(); };
+    im.src=src;
+  });
+}
+/* Camera imagery is not a FIS-B product and there is no in-flight internet in
+   a light single, so what the pilot has aloft is the set pulled before
+   departure. The scenario is 45 minutes from KBBB on a 135 NM flight, which
+   at the 90 kt this page uses puts departure at 1915Z -- so the frames are
+   45 minutes old at the 2000Z decision. That age is stated on every card:
+   the participant must not read a pre-departure picture as current. */
+const CAM_Z=1915;
+
+function drawCams(){
+  const st=stage();
+  const stale=true;                 // always: the scenario opens airborne
+  const ph = CAM_PHOTO[selSite];
+  const cred = (ph && ph.note) ? `<div class="camCred">${ph.note}</div>` : "";
+
+  /* A photograph, where one exists, replaces the rendered pair outright.
+     The clear-day reference goes with it: the real product pairs two frames
+     from the SAME fixed camera, and there is no honest way to fake that from
+     a different photograph of a different aerodrome. One real frame beats a
+     pair where half of it is a lie. */
+  if(ph){
+    camGrid.innerHTML=`
+      <div class="camCard">
+        <div class="camHead"><b>${selSite}</b><span class="sp"></span>
+          <span class="az">${CAM_Z}Z · 45 min old</span></div>
+        <!-- no time chip on the frame: the card header two lines up already
+             carries it, and on the solo layout there is no second pane to
+             tell apart -->
+        <div class="camShot solo"><img src="${ph.src}" alt="Aerodrome view at ${selSite}"></div>
+        <div class="camNote stale">Pulled before departure. Field-camera images
+          cannot be refreshed in flight — this is the ${CAM_Z}Z picture.</div>
+        ${cred}
+      </div>`;
+    document.getElementById("camHelp").textContent=
+      "The field camera at "+selSite+". Sky condition, light and surface state are"
+      +" things the coded report does not carry.";
+    return;
+  }
+
+  if(!GLOK){camGrid.innerHTML="";return;}
+  // Camera imagery is NOT a FIS-B product and there is no in-flight internet
+  // in a 172. What a pilot carries aloft is the set packed before departure,
+  // so the images are the 1915Z ones at BOTH stages.
+  const shotZ = CAM_Z, shotSid = 1;
+  const wx=obsOf(selSite);
+  const wet=/RA|DZ|SN/.test(wx.raw);
+  camGrid.innerHTML=camViews(selSite).map(dd=>`
+    <div class="camCard" data-b="${dd.b}" data-wet="${wet?1:0}">
+      <div class="camHead"><b>${dd.n}</b><span class="az">${String(dd.b).padStart(3,"0")}°</span>
+        <span class="sp"></span><span class="az">${selSite}</span></div>
+      <div class="camPair">
+        <div class="camShot" data-kind="now"><canvas></canvas>
+          <span class="kind">${CAM_Z}Z</span></div>
+        <div class="camShot ref" data-kind="clear"><canvas></canvas>
+          <span class="kind">Clear day</span></div>
+      </div>
+      <div class="camNote stale">Pulled before departure. Field-camera images
+        cannot be refreshed in flight — this is the ${CAM_Z}Z picture.</div>
+    </div>`).join("");
+
+  for(const card of camGrid.querySelectorAll(".camCard")){
+    const b=+card.dataset.b;
+    for(const shot of card.querySelectorAll(".camShot")){
+      const clear=shot.dataset.kind==="clear";
+      renderCam(selSite,b,clear,shotSid,shotZ);
+      const c=shot.querySelector("canvas");
+      c.width=cv.width;c.height=cv.height;
+      const cg=c.getContext("2d");
+      cg.drawImage(cv,0,0);
+      if(!clear && card.dataset.wet==="1") rainOnGlass(cg,c.width,c.height,0.24);
+      photoFinish(cg,c.width,c.height,clear);
+    }
+  }
+  document.getElementById("camHelp").textContent=
+    "The latest image beside a clear-day reference from the same camera.";
+}
+
+/* ==================================================================== *
+ *  7.  MAP TOOLS + TIME BAR + LEGEND
+ * ==================================================================== */
+function buildMapTools(){
+  const T=document.getElementById("mapTools");
+  T.innerHTML=`
+    <button class="chip ${layMetar?"on":""}" data-l="metar">Station plots</button>
+    <button class="chip ${layRadar?"on":""}" data-l="radar">Radar</button>
+    `;
+  T.querySelectorAll(".chip").forEach(b=>b.addEventListener("click",()=>{
+    const l=b.dataset.l;
+    if(l==="metar")layMetar=!layMetar; if(l==="radar")layRadar=!layRadar;
+    b.classList.toggle("on");
+    TEL.log("layer",{layer:l});
+    drawMap();
+  }));
+}
+/* Slow radar loop. Observed frames only -- it never runs past the current
+   time, because forecast radar is not something the pilot would have. It
+   holds longer on the latest frame so the end of the sequence is obvious. */
+let loopTimer=null, loopIdx=0, loopOn=true;
+function stopLoop(){ if(loopTimer){clearTimeout(loopTimer);loopTimer=null;} }
+function loopTick(){
+  const st=stage(), F=st.radarFrames;
+  radarZulu=F[loopIdx];
+  markTimeBar(); drawMap();
+  const last = loopIdx===F.length-1;
+  loopIdx=(loopIdx+1)%F.length;
+  loopTimer=setTimeout(loopTick, last?1900:900);    // dwell on the newest frame
+}
+function startLoop(){ stopLoop(); loopIdx=0; loopOn=true; loopTick(); }
+function markTimeBar(){
+  const cur = radarZulu!==null?radarZulu:stage().zulu;
+  document.querySelectorAll("#timeBtns .tbtn[data-z]").forEach(b=>
+    b.classList.toggle("on", +b.dataset.z===cur));
+  const lp=document.getElementById("loopBtn");
+  if(lp){ lp.classList.toggle("on",loopOn); lp.textContent=loopOn?"⏸ Pause loop":"▶ Play loop"; }
+}
+function buildTimeBar(){
+  const st=stage(), B=document.getElementById("timeBtns");
+  B.innerHTML=
+    `<button class="tbtn" id="loopBtn"></button>`+
+    st.radarFrames.map(f=>`<button class="tbtn" data-z="${f}">${f}Z</button>`).join("")+
+    `<button class="tbtn future" disabled title="Forecast radar is not available to you">later —</button>`;
+  B.querySelectorAll(".tbtn[data-z]").forEach(b=>b.addEventListener("click",()=>{
+    stopLoop(); loopOn=false;                       // manual pick pauses the loop
+    radarZulu=+b.dataset.z;
+    TEL.log("radar_time",{z:radarZulu});
+    markTimeBar(); drawMap();
+  }));
+  document.getElementById("loopBtn").addEventListener("click",()=>{
+    loopOn=!loopOn;
+    TEL.log("radar_loop",{on:loopOn});
+    if(loopOn) startLoop(); else { stopLoop(); markTimeBar(); }
+  });
+  markTimeBar();
+}
+function buildLegend(){
+  const L=document.getElementById("mapLegend");
+  const cats=["VFR","MVFR","IFR","LIFR"].map(c=>
+    `<span class="catSw${c==="VFR"?" onLight":""}" style="background:${CATC[c]}">${c}</span>`).join(" ");
+  const bins=DBZ.slice(0,9).map(([v,c])=>`<i style="background:${c}"></i>`).join("");
+  L.innerHTML=`<span class="legGroup">Flight category: ${cats}</span>
+    <span class="legGroup">Radar dBZ <span id="dbzScale">${bins}</span>
+      <span style="font-family:var(--mono)">5 → 45</span></span>`;
+}
+
+/* ==================================================================== *
+ *  8.  TEXT BRIEFING
+ * ==================================================================== */
+const briefBody=document.getElementById("briefBody");
+let tabEnter=performance.now();
+const esc=s=>String(s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));
+// defined here, not further down: the intro wizard's panel markup is built at
+// module-evaluation time and would hit the temporal dead zone otherwise
+const svg=(k,cls)=>`<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg>`;
+
+function obsCard(m){
+  const p=m.plot, cat=flightCat(p.ceil,p.vis), col=CATC[cat];
+  const id="raw_"+m.stn+"_"+m.zulu;
+  return `<div class="obsCard ${m.dest?"dest":""} ${m.prior?"prior":""}">
+    <div class="obsHead"><b>${m.stn}</b>
+      ${m.dest?'<span class="destTag">DESTINATION</span>':""}
+      <span class="sp"></span>
+      <span class="ageChip">${m.zulu}Z${m.prior?" · earlier report":""}</span></div>
+    <div class="obsMain">
+      <!-- AGL stated explicitly: the document gives every ceiling as AGL and the
+           forecast card already says so. Two cards using different conventions
+           for the same quantity is exactly the ambiguity a pilot would catch. -->
+      <div class="m"><dt>Ceiling</dt><dd>${p.ceil>=12000?"none":p.ceil.toLocaleString()+" ft AGL"}</dd></div>
+      <div class="m"><dt>Visibility</dt><dd>${p.vis} SM</dd></div>
+      <div class="m"><dt>Wind</dt><dd>${p.wdir}° ${p.wspd}${p.gst?"G"+p.gst:""}</dd></div>
+      <div class="m"><dt>Weather</dt><dd class="words">${m.wx}</dd></div>
+      <div class="m"><dt>Clouds</dt><dd>${p.cover}</dd></div>
+    </div>
+    <div class="rawRow"><button class="disc" data-raw="${id}">Show raw METAR ▾</button>
+      <pre class="raw" id="${id}" style="display:none">${esc(m.raw)}</pre></div>
+  </div>`;
+}
+function renderBrief(){
+  // Fixed order, current reports first. Nothing re-sorts: with one time point
+  // there is no freshness ranking left to make, and the age chip carries it.
+  const obs=METARS.map(m=>obsCard(m)).join("");
+  /* Version B gives KBBB's forecast in prose and states outright that KCCC
+     has no TAF. The absence is shown rather than hidden: "no forecast
+     available" is itself a fact a diverting pilot weighs. */
+  const fcst=TAFS.map(t=>t.none
+    ? `<div class="obsCard">
+         <div class="obsHead"><b>${t.stn}</b><span class="sp"></span>
+           <span class="ageChip">no TAF</span></div>
+         <div style="padding:.6rem .65rem" class="noTaf">No terminal forecast is
+           issued for this airport.</div></div>`
+    : `<div class="obsCard ${t.dest?"dest":""}">
+      <div class="obsHead"><b>${t.stn}</b>${t.dest?'<span class="destTag">DESTINATION</span>':""}
+        <span class="sp"></span><span class="ageChip">Forecast</span></div>
+      <div style="padding:.5rem .55rem">
+        ${t.rows.map(r=>`<div class="tafRow"><div class="per">${r[0]}</div>
+          <div class="vals">
+            <span>Visibility <b>${r[1]}</b></span><span>Weather <b>${r[2]}</b></span>
+            <span>Ceiling <b>${r[3]}</b></span>
+          </div></div>`).join("")}
+      </div></div>`).join("");
+  const adv=ADVS.map(a=>`<div class="advCard">
+      <h4>${esc(a.k)}</h4><div class="txt">${esc(a.v)}</div>
+      <div class="when">${esc(a.t)}</div></div>`).join("");
+  // All three sections, always, for every participant.
+  briefBody.innerHTML=
+    `<h3 class="briefH">Observations</h3>${obs}
+     <h3 class="briefH">Forecast</h3>${fcst}
+     <h3 class="briefH">Advisories</h3>${adv}`;
+  briefBody.querySelectorAll("[data-raw]").forEach(b=>b.addEventListener("click",()=>{
+    const el=document.getElementById(b.dataset.raw);
+    const open=el.style.display==="none";
+    el.style.display=open?"block":"none";
+    b.textContent=(open?"Hide raw ▴":b.textContent.replace("▴","▾").replace("Hide","Show"));
+    if(open)b.textContent=b.textContent.replace("Show","Hide").replace("▾","▴");
+    TEL.log("raw",{id:b.dataset.raw,on:open});
+  }));
+}
+// No tab wiring: there are no tabs. Nothing to log about which section a
+// participant chose, because they are not choosing any more.
+
+/* ==================================================================== *
+ *  9.  DECISION
+ * ==================================================================== */
+const acts=document.getElementById("acts"),adv=document.getElementById("advance");
+const advmsg=document.getElementById("advmsg");
+let R=null;
+const newR=()=>({intent:null,pressure:null,act:null,why:"",trigger:"",
+  moves:{intent:0,pressure:0},firstTouchMs:{intent:null,pressure:null},
+  tShown:performance.now()});
+
+/* Two 0-100 sliders now, so the machinery is a component rather than a set of
+   globals. Both are built identically: the response scale must not differ
+   between the two items in any way the participant can perceive. */
+function makeSlider(key,ids,onChange){
+  const el=document.getElementById(ids.range), out=document.getElementById(ids.val);
+  const paint=()=>{
+    if(R[key]===null){ el.style.backgroundImage="none"; return; }
+    const p=(el.value-el.min)/(el.max-el.min)*100;
+    el.style.backgroundImage=`linear-gradient(90deg,var(--navy) ${p}%,var(--line) ${p}%)`;
+  };
+  const slide=()=>{
+    if(R.firstTouchMs[key]===null){
+      R.firstTouchMs[key]=Math.round(performance.now()-R.tShown);
+      TEL.log("slider_first",{item:key,ms:R.firstTouchMs[key]});}
+    R.moves[key]++; R[key]=+el.value;
+    el.classList.remove("untouched"); out.classList.remove("empty");
+    out.textContent=el.value; paint(); onChange();
+  };
+  /* Drag is the hardest gesture for an older hand — tremor, dry fingertips,
+     capacitive dropout. Never make it the only path to a measured value. */
+  document.getElementById(ids.down).addEventListener("click",()=>{
+    el.value=Math.max(+el.min,(R[key]===null?50:R[key])-1); slide(); });
+  document.getElementById(ids.up).addEventListener("click",()=>{
+    el.value=Math.min(+el.max,(R[key]===null?50:R[key])+1); slide(); });
+  el.addEventListener("input",slide);
+  el.addEventListener("change",()=>TEL.log("slider_set",{item:key,v:R[key],moves:R.moves[key]}));
+  /* Deliberately NO keydown handler: one here used to call the slide path on
+     ANY key while the range had focus, so a bare Tab wrote a midpoint value
+     and enabled submission. Arrow, Home, End and PageUp/Down all fire `input`,
+     which is bound above, so the shim bought nothing but the bug. */
+  return {el,out,paint,reset(){
+    el.value=50; el.classList.add("untouched");
+    out.textContent="Drag the slider, or use − and +"; out.classList.add("empty");
+    paint();
+  }};
+}
+const S_INT=makeSlider("intent",{range:"sl",val:"slVal",down:"slDown",up:"slUp"},()=>ready());
+let S_PRS=null;                      // built on the follow-up page, not here
+const trigWrap=document.getElementById("trigwrap"), trigTa=document.getElementById("trig");
+
+function buildDecision(){
+  const st=stage();R=newR();
+  document.getElementById("q1").textContent=st.q;
+  document.getElementById("rNote").textContent=st.note||"";
+  S_INT.reset();
+  trigWrap.style.display="none"; trigTa.value="";
+  acts.innerHTML=st.acts.map((a,i)=>
+    `<label class="choice"><input type="radio" name="act" value="${i}"><span>${esc(a)}</span></label>`
+  ).join("");
+  acts.querySelectorAll('input[name="act"]').forEach(inp=>inp.addEventListener("change",()=>{
+    acts.querySelectorAll(".choice").forEach(c=>c.classList.remove("sel"));
+    inp.closest(".choice").classList.add("sel");
+    R.act=+inp.value;
+    // the trigger question belongs to action B alone
+    const on=R.act===st.triggerFor;
+    trigWrap.style.display=on?"block":"none";
+    /* Clear the STATE as well as the textarea. Setting .value fires no input
+       event, so R.trigger kept whatever had been typed under option B and the
+       export carried it out under actions A, C and D -- a value in the record
+       that the participant had abandoned, with nothing in the row to show it. */
+    if(!on){ trigTa.value=""; R.trigger=""; }
+    TEL.log("act",{act:R.act});ready();}));
+  trigTa.addEventListener("input",()=>{R.trigger=trigTa.value;});
+  ready();
+}
+function ready(){
+  // only the two items on this page gate its Submit
+  const need=[];
+  if(R.intent===null)  need.push("item 1 — move the likelihood slider");
+  if(R.act===null)     need.push("item 2 — select an action");
+  // the trigger box is not gated: forcing prose would turn an optional probe
+  // into a requirement, and only option B would carry it
+  adv.disabled=need.length>0;
+  advmsg.textContent=need.length?"Still to do: "+need.join("; ")+".":"";
+}
+adv.addEventListener("click",()=>{
+  const st=stage();
+  RESULT.response={
+    zulu:st.zulu,
+    destination_likelihood:R.intent,          // item 1, 0-100
+    action:R.act, action_text:st.acts[R.act], // item 2
+    /* null when the question was never asked, "" when it was asked and left
+       blank. Exporting "" for both made "chose B and skipped it" and "never
+       saw it" the same cell in a cross-tab. */
+    diversion_trigger:(R.act===st.triggerFor)?R.trigger.trim():null,
+    perceived_pressure:null,                  // item 3, filled on the next page
+    reason:"",                                // item 4, filled on the next page
+    first_touch_ms:R.firstTouchMs, slider_moves:R.moves,
+    screen_time_ms:Math.round(performance.now()-R.tShown)};
+  TEL.log("submit",{likelihood:R.intent,act:R.act});
+  // Commit to the record NOW, before the follow-up page exists. The claim on
+  // that page that the answer is recorded is only true because of this line.
+  exportResult("committed");
+  showFollowUp(st);
+});
+
+/* Items 3 and 4, on their own page, built only after the DV is written above.
+   Nothing here can reach back into item 1: that value is already in
+   RESULT.response before this markup exists. */
+function showFollowUp(st){
+  gateCard.className="gatecard";
+  gateCard.innerHTML=`
+    <h2>Two more questions</h2>
+    <div class="lead">Your answer is recorded and cannot be changed.</div>
+
+    <div class="stepLbl"><i>3</i><span>How much pressure would you feel to reach KBBB on time?</span></div>
+    <div class="slbox">
+      <div id="prVal" class="empty">Drag the slider, or use &minus; and +</div>
+      <input type="range" id="pr" class="untouched" min="0" max="100" value="50" step="1"
+             aria-label="Perceived pressure, 0 to 100">
+      <div class="slends"><span>0<br>no<br>pressure</span><span class="end">100<br>extreme<br>pressure</span></div>
+      <div class="slBtns">
+        <button class="slStep" id="prDown" aria-label="Decrease by one">&minus;</button>
+        <button class="slStep" id="prUp" aria-label="Increase by one">+</button>
+      </div>
+    </div>
+
+    <div class="stepLbl" style="margin-top:1.1rem"><i>4</i><span>Reason
+      <em class="opt">optional</em></span></div>
+    <textarea id="why" placeholder="Briefly, the main reason for your decision. Please do not include any identifying information."></textarea>
+
+    <button class="btn" id="fuGo" disabled>Finish</button>
+    <div id="whymsg"></div>`;
+  gate.classList.remove("off"); toTop();
+
+  const go=document.getElementById("fuGo"), msg=document.getElementById("whymsg");
+  const ta=document.getElementById("why");
+  /* Items 3 and 4 are written into the exported record AS THEY ARE ANSWERED,
+     not only when Finish is clicked. The safety net serialises RESULT.response,
+     not R, so a participant who set pressure to 85 and then backgrounded the
+     tab -- visibilitychange fires on every iOS app switch and screen lock --
+     exported perceived_pressure:null, indistinguishable from someone who never
+     reached this page. That is the same MNAR trap already closed for items 1
+     and 2, left open for the one item most likely to correlate with dropping
+     out: felt pressure. */
+  const gate2=()=>{
+    RESULT.response.perceived_pressure=R.pressure;
+    RESULT.response.pressure_moves=R.moves.pressure;
+    if(R.pressure!==null && RESULT.stage==="committed") RESULT.stage="partial_followup";
+    go.disabled=R.pressure===null;
+    msg.textContent=R.pressure===null?"Move the pressure slider to finish.":"";
+  };
+  S_PRS=makeSlider("pressure",{range:"pr",val:"prVal",down:"prDown",up:"prUp"},gate2);
+  ta.addEventListener("input",()=>{R.why=ta.value; RESULT.response.reason=R.why.trim();});
+  gate2();
+  go.addEventListener("click",()=>{
+    RESULT.response.perceived_pressure=R.pressure;
+    RESULT.response.reason=R.why.trim();
+    RESULT.response.pressure_moves=R.moves.pressure;
+    TEL.log("followup_submit",{pressure:R.pressure,reason_len:R.why.trim().length});
+    finish();
+  });
+  TEL.log("followup_page");
+}
+
+/* ==================================================================== *
+ * 10.  GATES + STAGE SETUP
+ * ==================================================================== */
+const gate=document.getElementById("gate"),gateCard=document.getElementById("gateCard");
+/* ---- intro wizard -----------------------------------------------------
+   One screen at a time with an explicit Next. A swipeable carousel let
+   participants skip panels without noticing; a paged wizard cannot be
+   skipped, and every panel view is logged so exposure is auditable.      */
+const WIZ=[
+{ k:"mission", head:"Where you are",
+  art:`<div class="wzEmblem">
+         <span class="wzHalo"></span>
+         <span class="wzArc"></span>
+         ${svg("family","ico wzIco")}
+       </div>`,
+  body:`<p class="wzLead">You are <b>45 minutes from KBBB</b>, en route to an
+        <b>important family commitment</b>.</p>
+        <div class="wzFacts">
+          <div class="wzFact">${svg("clock","ico")}<div><b>Arriving on time matters personally</b></div></div>
+          <div class="wzFact">${svg("case","ico")}<div><b>But this is not an emergency</b>
+            <span>No employment obligation and no financial loss depends on arriving.</span></div></div>
+        </div>`},
+{ k:"aircraft", head:"The aeroplane",
+  art:`<img class="wzImg" src="img/aircraft.jpg" alt="A single-engine high-wing light aeroplane">`,
+  body:`<p class="wzLead">Single engine. Day VFR only. No autopilot.</p>
+        <p class="wzSub">You are the pilot in command, current and proficient in
+        the aeroplane, familiar with the route, and flying alone.</p>`},
+{ k:"route", head:"Where you are going",
+  art:`<canvas id="routeMini" class="wzCanvas"></canvas>`,
+  body:`<p class="wzLead"><b>KBBB</b> is 45 minutes ahead. <b>KCCC</b> is about
+        50 minutes away, to the northeast.</p>
+        <p class="wzSub">Track up, the same view you will read the weather on.
+        The faded line behind you is the way you have already come.</p>`},
+{ k:"flight", head:"The flight",
+  art:`<div class="wzTiles" id="wzTiles"></div>`,
+  /* The interface orientation lives HERE, on a reachable panel. In the previous
+     build the only copy explaining that airports are tappable and what the
+     cross-section measures sat in a gate the code could never reach, so
+     participants who never found those panels sampled a different stimulus. */
+  body:`<p class="wzLead">You will answer <b>four</b> questions about this one moment.</p>
+        <p class="wzSub">Answer according to what you would actually do as pilot in
+        command. There are no right or wrong answers, and your responses are not
+        used to evaluate pilot competence.</p>
+        <ul class="wzList">
+          <li><b>Observations &amp; radar</b> — a track-up chart. Tap either airport to
+              bring up its camera.</li>
+          <li><b>Out the window</b> — what you can see ahead from the cockpit.</li>
+          <li><b>Cross-section</b> — cloud bases and tops over the 45 minutes still to
+              fly, against your altitude.</li>
+          <li><b>Text briefing</b> — every observation, forecast and advisory in words.</li>
+        </ul>`}
+];
+const WZ_TILES=[
+ ["runway","Destination","KBBB · Rwy 23","4,000 ft · non-towered · AWOS · pattern 1,000 ft AGL"],
+ ["alt","Alternate","KCCC · Rwy 18/36","4,500 ft · AWOS · no TAF · about 50 min, northeast · diversion route stays outside the stronger shower area"],
+ ["fuel","Fuel","90 minutes +","at least, remaining at landing either way"],
+ ["sun","Daylight","2 hours +","at least, remaining"]
+];
+let wizIdx=0;
+/* Every page change resets the document scroll. A panel is a page now, so
+   arriving part-way down the previous one would be a navigation bug. */
+function toTop(){ scrollTo({top:0,behavior:"instant"}); }
+function showWizard(){
+  wizIdx=0; renderWiz(); gate.classList.remove("off"); toTop();
+  TEL.log("wizard_open");
+}
+function renderWiz(){
+  const w=WIZ[wizIdx], last=wizIdx===WIZ.length-1;
+  gateCard.className="gatecard wizard";
+  const art = w.art;
+  gateCard.innerHTML=
+    `<div class="wzTop"><span class="wzStep">${wizIdx+1} of ${WIZ.length}</span>
+       <h2>${w.head}</h2></div>
+     <div class="wzArt">${art}</div>
+     <div class="wzBody">${w.body}</div>
+     <div class="wzNav">
+       <button class="btn ghost" id="wzBack" ${wizIdx===0?"disabled":""}>Back</button>
+       <button class="btn" id="wzNext">${last?"Begin the briefing":"Next"}</button>
+     </div>`;
+  if(w.k==="route"){
+    // the real chart, track up, minus every weather layer
+    const c=document.getElementById("routeMini");
+    const cw=c.parentElement.clientWidth||360;
+    fitChart(c,cw);
+    drawMap(c,{weather:false,ownship:true});
+  }
+  if(w.k==="flight") document.getElementById("wzTiles").innerHTML=
+    WZ_TILES.map(([ic,lab,val,sub])=>
+      `<div class="wzTile">${svg(ic,"ico")}<div class="tx">
+         <span class="lb">${esc(lab)}</span><span class="vl">${esc(val)}</span>
+         ${sub?`<span class="sb">${esc(sub)}</span>`:""}</div></div>`).join("");
+  document.getElementById("wzBack").onclick=()=>{ if(wizIdx>0){wizIdx--;renderWiz();toTop();} };
+  document.getElementById("wzNext").onclick=()=>{
+    TEL.log("wizard_next",{panel:WIZ[wizIdx].k});
+    if(wizIdx<WIZ.length-1){ wizIdx++; renderWiz(); toTop(); }
+    else { gate.classList.add("off"); enterStage(); toTop(); }   // straight to the briefing
+  };
+  TEL.log("wizard_view",{panel:w.k,idx:wizIdx});
+}
+
+// The written orientation lives in the wizard's fourth panel now, where it is
+// actually reachable; there is no second gate because there is no second stage.
+function showGate(){ showWizard(); }
+function enterStage(){
+  const st=stage();
+  // Status strip owns "now" and position, so those numbers appear nowhere else.
+  // Times, not distances: the document gives minutes, and the ground speed the
+  // chart is built on is an assumption the participant should never inherit.
+  document.getElementById("strip").innerHTML =
+    [[st.zulu+"Z","now"],[CRUISE_TXT,""],["45 min to KBBB",""],["KCCC about 50 min",""]]
+    .map(([t,c])=>`<span class="${c}">${t}</span>`).join("");
+  /* The document says only "Radar at 2000Z" and never mentions a datalink. The
+     FIS-B latency caveat that used to sit here is real-world correct but
+     invented relative to the instrument, and it is an official-sounding
+     statement that the situation may already be worse than shown -- aimed at
+     the one product carrying the shower position. That pushes item 1 down and
+     item 3 up, and item 3 is now a measured outcome. */
+  document.getElementById("radarLab").textContent="Radar — observed 2000Z";
+  document.getElementById("xsTag").textContent=st.zulu+"Z";
+  stopLoop(); radarZulu=null;
+  selSite="KBBB"; selStn=selSite;
+  buildSituation();
+  buildTimeBar();buildSiteTabs();
+  layoutCanvases();
+  startLoop();
+  renderBrief();buildDecision();
+  tabEnter=performance.now();
+  TEL.log("stage_enter");
+}
+
+/* ==================================================================== *
+ * 11.  FINISH
+ * ==================================================================== */
+/* Does the chosen action agree with the stated likelihood? Reported as a flag
+   for screening, not as a judgment of the participant: a high likelihood of
+   choosing KBBB alongside an immediate diversion is worth a second look at
+   the row, nothing more. Action indices follow the document's order. */
+function consistency(p,a){
+  if(p===null||a===null)return "";
+  if(p>=70&&a>=2)return "high_likelihood_but_diverts";
+  if(p<=30&&a===0)return "low_likelihood_but_continues";
+  return "consistent";}
+/* Export runs the MOMENT items 1 and 2 are committed, and again when the
+   follow-up completes. Splitting the form onto two pages had made the primary
+   DV reachable only through finish(), which is reachable only through the
+   Finish button, which is disabled until perceived pressure is answered -- so
+   a participant who closed the tab on page 2 left with the DV recorded
+   NOWHERE, while the page told them "Your answer is recorded". Worse for the
+   analysis: that drop-off happens on the PRESSURE page, so the missingness is
+   plausibly caused by felt pressure itself. That is MNAR, and it would silently
+   violate the missing-at-random assumption behind the FIML remedy. */
+function exportResult(stage){
+  const r=RESULT.response;
+  RESULT.stage=stage;
+  RESULT.meta=TEL.meta();RESULT.events=TEL.ev;
+  RESULT.derived={
+    dv_primary:r.destination_likelihood,
+    perceived_pressure:r.perceived_pressure,
+    action_consistency:consistency(r.destination_likelihood,r.action)};
+  /* Called BOUND, and each field wrapped separately. Detaching the method
+     (`const Q = Qualtrics.SurveyEngine.setEmbeddedData`) breaks it if the
+     implementation touches `this`, and one shared try meant a throw on the
+     first field silently skipped every field after it. The bridge result is
+     now recorded, so a run that wrote thirteen fields and a run that wrote
+     zero are no longer byte-identical in your data. */
+  const bridge={available:false,written:0,failed:[],error:null};
+  try{
+    const QE=window.Qualtrics&&Qualtrics.SurveyEngine;
+    bridge.available=!!(QE&&typeof QE.setEmbeddedData==="function");
+    if(bridge.available){
+      const put=(k,v)=>{ try{ QE.setEmbeddedData(k, v===null||v===undefined?"":String(v));
+        bridge.written++; }catch(e){ bridge.failed.push(k); } };
+      put("DV_stage",stage);                        // committed | partial_followup | complete
+      put("DV_likelihood",r.destination_likelihood);// item 1, 0-100
+      put("DV_action",r.action);                    // item 2, index 0-3
+      put("DV_action_text",r.action_text);
+      put("DV_trigger",r.diversion_trigger===null?"NA":r.diversion_trigger);
+      put("DV_pressure",r.perceived_pressure);      // item 3, blank if unanswered
+      put("DV_reason",r.reason);                    // item 4, optional
+      put("DV_consist",RESULT.derived.action_consistency);
+      put("DV_time_ms",r.screen_time_ms);
+      put("DV_moves_likelihood",r.slider_moves.intent);
+      put("DV_moves_pressure",r.slider_moves.pressure);
+      /* Cut at an element boundary, not mid-token. A raw .slice() produced
+         unparseable JSON with nothing marking that it had been cut. */
+      const ev=RESULT.events; let n=ev.length, s=JSON.stringify(ev);
+      while(s.length>18000 && n>0){ n=Math.floor(n*0.8); s=JSON.stringify(ev.slice(-n)); }
+      put("DV_process",s);
+      put("DV_process_truncated",n<ev.length?"1":"0");
+    }
+  }catch(e){ bridge.error=e&&e.message; console.warn("Qualtrics bridge unavailable",e); }
+  RESULT.bridge=bridge;
+  try{parent.postMessage({type:"DV_SCENARIO_"+stage.toUpperCase(),payload:RESULT},"*");}catch(e){}
+  window.DV_RESULT=RESULT;
+  TEL.log("export",{stage});
+}
+/* Last-ditch net: if the tab is hidden or torn down after items 1 and 2 are
+   committed but before Finish, push what exists rather than losing the DV. */
+const netExport=()=>{ if(RESULT.response.destination_likelihood!==null
+  && RESULT.stage!=="complete")
+  exportResult(RESULT.response.perceived_pressure!==null?"partial_followup":"committed"); };
+addEventListener("pagehide",netExport);
+document.addEventListener("visibilitychange",()=>{ if(document.hidden) netExport(); });
+
+function finish(){
+  const r=RESULT.response;
+  exportResult("complete");
+  gateCard.innerHTML=`<h2>Thank you — your responses have been recorded.</h2>
+    <div class="lead">Nothing further is needed on this page.</div>
+    <div class="gbox mono" style="font-size:var(--fs-md);line-height:1.9">
+      Likelihood of choosing KBBB <strong>${r.destination_likelihood}</strong><br>
+      Perceived pressure <strong>${r.perceived_pressure}</strong>
+    </div>
+    <p>If you were sent here from a survey, please return to that tab to finish.</p>
+    <button class="btn" id="dl">Download my response file</button>`;
+  gateCard.className="gatecard";
+  gate.classList.remove("off"); toTop();
+  document.getElementById("dl").addEventListener("click",()=>{
+    const b=new Blob([JSON.stringify(RESULT,null,2)],{type:"application/json"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(b);a.download="dv_scenario_response.json";a.click();});
+  TEL.log("finish");
+}
+
+/* ==================================================================== *
+ * 12.  SIZING  (canvases are drawn once per change, not per frame)
+ * ==================================================================== */
+function sizeCanvas(c,cssH,dprCap){
+  const w=c.parentElement.clientWidth;
+  if(!w) return false;
+  MDPR=Math.min(devicePixelRatio||1,2);
+  const d=dprCap? Math.min(devicePixelRatio||1,dprCap) : MDPR;
+  c.style.height=cssH+"px";
+  const nw=Math.round(w*d), nh=Math.round(cssH*d);
+  if(c.width!==nw||c.height!==nh){c.width=nw;c.height=nh;}
+  return true;
+}
+function layoutCanvases(){
+  const {short}=applyDevice();
+  const w=innerWidth, h=innerHeight;
+  // Chart height per device. Phones get a near-square chart (the route runs
+  // vertically track-up); short landscape screens get a flatter one so the
+  // decision stays reachable without a long scroll.
+  let mapH, xsH;
+  if(DEV==="phone-sm"||DEV==="phone"){ mapH=Math.min(w*1.02, h*0.62); xsH=Math.min(w*0.62, h*0.40); }
+  else if(DEV==="small"||DEV==="tablet"){ mapH=Math.min(w*0.62, h*0.55); xsH=Math.min(w*0.40, h*0.36); }
+  else { mapH=Math.min(560, Math.max(320, h*0.48)); xsH=Math.min(340, Math.max(230, h*0.30)); }
+  if(short){ mapH=Math.min(mapH, h*0.72); xsH=Math.min(xsH, h*0.55); }
+  mapH=Math.round(Math.max(240, mapH)); xsH=Math.round(Math.max(180, xsH));
+
+  /* Version B's picture is TALL and NARROW -- 34 NM of flown track behind the
+     aeroplane, 67.5 ahead to KBBB, and the alternate only ~32 NM off to the
+     side. A device-fraction height therefore compressed it badly: KBBB and
+     KCCC landed 50 CSS px apart on a desktop chart. The main chart now uses
+     the same separation-driven sizing as the route panel and the wizard, so
+     all three charts agree on how close two fields are allowed to get. */
+  const mw=mapC.parentElement.clientWidth;
+  if(mw){
+    const grown=fitChart(mapC,mw,{start:mapH,maxVH:0.95,maxPx:620});
+    mapH=Math.round(mapC.getBoundingClientRect().height);
+    if(grown<60) TEL.log("chart_tight",{sep:Math.round(grown)});
+  }
+  if(!sizeCanvas(mapC,mapH)) return;
+  sizeCanvas(xsC,xsH);
+  /* When a photograph is in place, the canvas takes ITS aspect ratio rather
+     than a device fraction. A device-fraction box forced the renderer to crop
+     or letterbox whatever did not match; matched to the image, the whole frame
+     lands exactly, at every width, with no trimming and no bars. Falls back to
+     the old device sizing only when the rendered view is in use. */
+  const otwParentW = otwC.parentElement.clientWidth || w;
+  const otwPhoto = OTW_PHOTO.enroute;
+  const otwH = otwPhoto
+    ? otwParentW * (otwPhoto.height / otwPhoto.width)
+    : ((DEV==="phone-sm"||DEV==="phone") ? Math.min(w*0.60,h*0.40)
+                                         : Math.min(w*0.34, 380));
+  // The window view is ONE photographic image, so it renders at the display's
+  // true pixel density. Capping it at 2 on a 3x phone was upscaling it 1.5x,
+  // which is what made it look soft.
+  sizeCanvas(otwC, Math.round(Math.max(170,otwH)), 3);
+  // camera tiles: cap the offscreen render so old phones stay responsive
+  const pairCols=getComputedStyle(document.querySelector(".camPair")||document.body)
+    .gridTemplateColumns.split(" ").length;
+  // Render at the DISPLAY's pixel density. Rendering at 1.75x and showing on a
+  // 3x phone upscaled every image ~1.7x, which is what made them look blurred.
+  const gridW=camGrid.clientWidth||w;
+  const tileW=Math.min(620,Math.max(240,(gridW/Math.max(1,pairCols))-8));
+  let cw=Math.round(tileW*Math.min(devicePixelRatio||1,2.75));
+  let ch=Math.round(cw*9/16);
+  const MAXPX=620000;                       // keeps old phones responsive
+  if(cw*ch>MAXPX){ const k=Math.sqrt(MAXPX/(cw*ch)); cw=Math.round(cw*k); ch=Math.round(ch*k); }
+  cv.width=cw; cv.height=ch;
+  drawMap();drawXSec();drawOTW();drawCams();
+}
+let rT=null;
+const relayout=()=>{clearTimeout(rT);rT=setTimeout(layoutCanvases,110);};
+addEventListener("resize",relayout);
+addEventListener("orientationchange",relayout);
+if(window.ResizeObserver){
+  const ro=new ResizeObserver(relayout);
+  ro.observe(document.getElementById("secMap"));
+  ro.observe(document.getElementById("secCam"));
+}
+
+/* ==================================================================== *
+ * 13.  BOOT
+ * ==================================================================== */
+/* One situation, and the mission block stays on screen: with a single
+   measurement there is no second reading for its presence to contaminate, and
+   perceived pressure is now itself an item -- the participant has to be able
+   to see what they are rating pressure against while they rate it. */
+function buildSituation(){
+  const mz=document.getElementById("missionZone");
+  document.getElementById("flightHdr").textContent="The flight";
+  mz.innerHTML=
+    `<div class="mHero">
+       <span class="mDisc">${svg(MISSION_HERO.icon,"ico hero")}</span>
+       <div><div class="mL1">${esc(MISSION_HERO.line1)}</div>
+            <div class="mL2">${esc(MISSION_HERO.line2)}</div></div>
+     </div>
+     <div class="mChips">${MISSION_CHIPS.map(([ic,a,b])=>
+       `<div class="mChip">${svg(ic,"ico")}<div><b>${esc(a)}</b>${
+         b?`<span>${esc(b)}</span>`:""}</div></div>`).join("")}</div>`;
+  document.getElementById("sitGrid").innerHTML=SITUATION
+    .map(([ic,lab,val,sub])=>
+      `<dl class="sitItem">
+         ${svg(ic,"ico")}
+         <dd>${esc(val)}</dd>
+         <dt>${esc(lab)}</dt>
+         ${sub?`<small>${esc(sub)}</small>`:""}
+       </dl>`).join("");
+}
+applyDevice();
+buildMapTools();buildLegend();
+// probe for real aerodrome photography before the first camera draw
+probeCamPhotos(()=>{ if(document.getElementById("camGrid")) drawCams(); });
+probeOtwPhotos(()=>drawOTW());
+if(GLOK){ buildGL(); buildLandmarks(); }
+enterStage();
+showGate();
+
+/* ---- access code -------------------------------------------------------
+   A pilot-phase door, NOT a security control. The page is static and the repo
+   is public, so this constant is readable by anyone who views source. It keeps
+   a stray visitor out of a live instrument; it protects nothing. Delete this
+   block when the study opens. Telemetry records that the door was passed so a
+   response cannot be mistaken for one collected while the page was open.    */
+const ACCESS_CODE="REDACTED";
+(function(){
+  const lock=document.getElementById("lock"), inp=document.getElementById("lockCode"),
+        go=document.getElementById("lockGo"), msg=document.getElementById("lockMsg");
+  if(!lock) return;
+  let tries=0;
+  const unlock=()=>{
+    if(inp.value.trim()===ACCESS_CODE){
+      lock.classList.add("off");
+      TEL.log("access_ok",{tries});
+      // hand focus to the page the participant is now looking at
+      const b=document.getElementById("wzNext"); if(b) b.focus();
+    }else{
+      tries++;
+      msg.textContent="That code is not right. Please check and try again.";
+      TEL.log("access_fail",{tries});
+      inp.select();
+    }
+  };
+  go.addEventListener("click",unlock);
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); unlock(); } });
+  inp.focus();
+})();
+</script>
+</body>
+</html>
