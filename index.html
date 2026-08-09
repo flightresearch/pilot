@@ -661,8 +661,7 @@ html[data-dev="phone-sm"] #sitGrid{grid-template-columns:1fr 1fr}
   <section class="card" id="secXs">
     <h2>Route cross-section<span class="sp"></span><span class="tag" id="xsTag"></span></h2>
     <div class="canvwrap"><canvas id="xs"></canvas></div>
-    <div id="xsNote">Cloud base and tops over the 45 minutes still to fly, against
-      your altitude. Heights are MSL.</div>
+    <div id="xsNote">Cloud base and tops ahead, against your altitude. Heights MSL.</div>
   </section>
 
   <section class="card" id="secCam">
@@ -672,8 +671,8 @@ html[data-dev="phone-sm"] #sitGrid{grid-template-columns:1fr 1fr}
        time, so the tag said nothing true and nothing new. -->
   <h2>Weather cameras</h2>
   <div id="siteTabs"></div>
-  <div id="noGL">Camera imagery cannot be displayed on this device. All observations,
-    forecasts and advisories remain available below, and you can answer normally.</div>
+  <div id="noGL">Camera imagery cannot be displayed on this device. Everything else
+    remains available, and you can answer normally.</div>
   <div id="camGrid"></div>
   <div id="camHelp"></div>
   </section>
@@ -1607,7 +1606,7 @@ const xsC=document.getElementById("xs");
 function drawXSec(){
   const g=xsC.getContext("2d"),W=xsC.width,H=xsC.height,st=stage();
   g.setTransform(1,0,0,1,0,0);
-  const padL=S(40),padR=S(12),padT=S(12),padB=S(22);
+  const padL=S(40),padR=S(14),padT=S(12),padB=S(34);
   const pw=W-padL-padR,ph=H-padT-padB,MAX=12000;
   const X=f=>padL+f*pw, Y=ft=>padT+ph*(1-ft/MAX);
   /* The section now runs from the AEROPLANE to KBBB -- the 45 minutes still to
@@ -1630,11 +1629,36 @@ function drawXSec(){
     g.fillRect(X(f),Y(top),pw/CO+1,Y(base)-Y(top));
     g.fillStyle=`rgba(178,186,196,${.16+.14*sh})`;
     g.fillRect(X(f),Y(10000),pw/CO+1,Y(8200)-Y(10000));
-    if(sh>.20){g.fillStyle=`rgba(70,120,175,${(sh-.20)*.42})`;
+    if(sh>.20){g.fillStyle=`rgba(70,120,175,${(sh-.20)*.34})`;
       g.fillRect(X(f),Y(base),pw/CO+1,Y(gnd)-Y(base));}
     g.fillStyle=`rgba(64,78,94,${.38+.42*w.cov})`;
     g.fillRect(X(f),Y(base),pw/CO+1,Math.max(1,S(1.7)));
   }
+  /* Rain as slanted strokes below the deck rather than a flat blue wash. A
+     wash reads as "shaded region"; strokes read as precipitation, which is
+     the one thing on this panel a pilot must not have to decode. Drawn only
+     where the shower area actually is, so the cue stays truthful. */
+  g.save();
+  g.beginPath();g.rect(padL,padT,pw,ph);g.clip();
+  g.lineCap="round";
+  for(let i=0;i<CO;i++){
+    const f=i/CO,p=at(f),sh=shieldAt(p.x,p.z,st.zulu);
+    if(sh<=.24) continue;
+    const w=wxAt(p.x,p.z),gnd=terrainFt(p.x,p.z),base=gnd+w.ceil;
+    const x0=X(f),yb=Y(base),yg=Y(gnd),span=yg-yb;
+    if(span<=0) continue;
+    const n=Math.max(1,Math.round(2+4*sh));
+    g.strokeStyle=`rgba(52,104,160,${(sh-.24)*.55})`;
+    g.lineWidth=Math.max(1,S(1.1));
+    for(let j=0;j<n;j++){
+      // deterministic scatter: the section must redraw identically every time
+      const r1=((i*73+j*137)%100)/100, r2=((i*31+j*57)%100)/100;
+      const sx=x0+r1*(pw/CO+1), sy=yb+r2*span*.72;
+      const len=span*(.16+.14*r1);
+      g.beginPath();g.moveTo(sx,sy);g.lineTo(sx-S(2.6),sy+len);g.stroke();
+    }
+  }
+  g.restore();
   g.beginPath();g.moveTo(X(0),Y(0));
   for(let i=0;i<=220;i++){const f=i/220,p=at(f);g.lineTo(X(f),Y(terrainFt(p.x,p.z)));}
   g.lineTo(X(1),Y(0));g.closePath();
@@ -1667,12 +1691,30 @@ function drawXSec(){
      numerate pilot 90 kt and a time-to-intercept, while a non-numerate pilot
      got nothing. The echo already drawn on the section shows where the rain is
      without asserting a figure. */
-  g.textBaseline="top";g.font=`700 ${S(11.5)}px ui-monospace,monospace`;
-  // left end is the cockpit now, not a departure field
-  g.textAlign="left";g.fillStyle="#2a3644";g.fillText("YOU",padL,padT+ph+S(4));
-  g.textAlign="right";g.fillStyle="#0f3557";g.fillText("KBBB",padL+pw,padT+ph+S(4));
-  if(DETAIL){
+  /* A time axis, not two bare words. The caption under the canvas used to be
+     what told you the section spanned "the 45 minutes still to fly"; putting
+     that on the axis lets the picture carry its own datum and lets the caption
+     shrink. Times, never distances -- the same rule the deleted NM callout
+     above was removed for. */
+  const yAx=padT+ph;
+  g.strokeStyle="rgba(40,60,80,.30)";g.lineWidth=Math.max(1,S(1));
+  g.beginPath();g.moveTo(padL,yAx);g.lineTo(padL+pw,yAx);g.stroke();
+  g.textBaseline="top";g.textAlign="center";
+  g.font=`600 ${S(10.5)}px ui-monospace,monospace`;
+  for(const mn of [15,30]){
+    const f=mn/MIN_KBBB, x=X(f);
+    g.strokeStyle="rgba(40,60,80,.30)";
+    g.beginPath();g.moveTo(x,yAx);g.lineTo(x,yAx+S(4));g.stroke();
+    g.fillStyle="#5a6874";g.fillText(mn+" min",x,yAx+S(6));
   }
+  g.font=`700 ${S(11.5)}px ui-monospace,monospace`;
+  // left end is the cockpit now, not a departure field
+  g.textAlign="left";g.fillStyle="#2a3644";g.fillText("YOU",padL,yAx+S(6));
+  // destination gets a mark on the axis as well as a name
+  g.textAlign="right";g.fillStyle="#0f3557";
+  g.fillText("KBBB "+MIN_KBBB+" min",padL+pw,yAx+S(6));
+  g.strokeStyle="#0f3557";g.lineWidth=Math.max(1,S(2));
+  g.beginPath();g.moveTo(padL+pw,yAx-S(5));g.lineTo(padL+pw,yAx+S(4));g.stroke();
   // The caption is HTML beneath the canvas, not canvas text: gated on DETAIL it
   // vanished on exactly the device the requirements name as primary, leaving an
   // uncaptioned section with no statement of its datum.
@@ -2296,13 +2338,14 @@ function drawCams(){
              carries it, and on the solo layout there is no second pane to
              tell apart -->
         <div class="camShot solo"><img src="${ph.src}" alt="Aerodrome view at ${selSite}"></div>
-        <div class="camNote stale">Pulled before departure. Field-camera images
-          cannot be refreshed in flight — this is the ${CAM_Z}Z picture.</div>
+        <!-- The card header two lines up already prints "1915Z · 45 min old",
+             so the note carries only what the header cannot: WHY it is old. -->
+        <div class="camNote stale">Pulled before departure — cannot be refreshed in flight.</div>
         ${cred}
       </div>`;
-    document.getElementById("camHelp").textContent=
-      "The field camera at "+selSite+". Sky condition, light and surface state are"
-      +" things the coded report does not carry.";
+    /* camHelp emptied. It restated the section heading and then explained what
+       a photograph is for, to an audience of pilots. */
+    document.getElementById("camHelp").textContent="";
     return;
   }
 
@@ -2323,8 +2366,7 @@ function drawCams(){
         <div class="camShot ref" data-kind="clear"><canvas></canvas>
           <span class="kind">Clear day</span></div>
       </div>
-      <div class="camNote stale">Pulled before departure. Field-camera images
-        cannot be refreshed in flight — this is the ${CAM_Z}Z picture.</div>
+      <div class="camNote stale">Pulled before departure — cannot be refreshed in flight.</div>
     </div>`).join("");
 
   for(const card of camGrid.querySelectorAll(".camCard")){
@@ -2451,11 +2493,13 @@ function renderBrief(){
      has no TAF. The absence is shown rather than hidden: "no forecast
      available" is itself a fact a diverting pilot weighs. */
   const fcst=TAFS.map(t=>t.none
+    /* Header and chip alone. The sentence underneath said a third time what
+       the station name and the chip already say, and the same fact is on the
+       alternate's tile in the intro. The absence is still shown -- it is a
+       fact a diverting pilot weighs -- just not spelled out three ways. */
     ? `<div class="obsCard">
          <div class="obsHead"><b>${t.stn}</b><span class="sp"></span>
-           <span class="ageChip">no TAF</span></div>
-         <div style="padding:.6rem .65rem" class="noTaf">No terminal forecast is
-           issued for this airport.</div></div>`
+           <span class="ageChip">no TAF</span></div></div>`
     : `<div class="obsCard ${t.dest?"dest":""}">
       <div class="obsHead"><b>${t.stn}</b>${t.dest?'<span class="destTag">DESTINATION</span>':""}
         <span class="sp"></span><span class="ageChip">Forecast</span></div>
@@ -2691,11 +2735,13 @@ const gate=document.getElementById("gate"),gateCard=document.getElementById("gat
    skipped, and every panel view is logged so exposure is auditable.      */
 const WIZ=[
 { k:"mission", head:"Where you are",
-  art:`<div class="wzEmblem">
-         <span class="wzHalo"></span>
-         <span class="wzArc"></span>
-         ${svg("family","ico wzIco")}
-       </div>`,
+  /* A cockpit banner rather than an emblem. Deliberately cropped BELOW the
+     rain shaft: this panel's job is the personal framing and its counterweight,
+     and pairing that text with the weather picture would couple "family
+     commitment" to "storm ahead" before the participant has seen a single
+     observation. The full forward view, shaft and all, is the stimulus in
+     "Out the window" where it belongs. */
+  art:`<img class="wzImg" src="img/cockpit.jpg" alt="Forward view from the cockpit at cruise">`,
   body:`<p class="wzLead">You are <b>45 minutes from KBBB</b>, en route to an
         <b>important family commitment</b>.</p>
         <div class="wzFacts">
@@ -2706,36 +2752,31 @@ const WIZ=[
 { k:"aircraft", head:"The aeroplane",
   art:`<img class="wzImg" src="img/aircraft.jpg" alt="A single-engine high-wing light aeroplane">`,
   body:`<p class="wzLead">Single engine. Day VFR only. No autopilot.</p>
-        <p class="wzSub">You are the pilot in command, current and proficient in
-        the aeroplane, familiar with the route, and flying alone.</p>`},
+        <p class="wzSub">You are pilot in command — current, proficient, familiar
+        with the route, flying alone.</p>`},
 { k:"route", head:"Where you are going",
   art:`<canvas id="routeMini" class="wzCanvas"></canvas>`,
   body:`<p class="wzLead"><b>KBBB</b> is 45 minutes ahead. <b>KCCC</b> is about
         50 minutes away, to the northeast.</p>
-        <p class="wzSub">Track up, the same view you will read the weather on.
-        The faded line behind you is the way you have already come.</p>`},
+        <p class="wzSub">Track up. The faded line behind you is where you have come from.</p>`},
 { k:"flight", head:"The flight",
   art:`<div class="wzTiles" id="wzTiles"></div>`,
   /* The interface orientation lives HERE, on a reachable panel. In the previous
      build the only copy explaining that airports are tappable and what the
      cross-section measures sat in a gate the code could never reach, so
      participants who never found those panels sampled a different stimulus. */
+  /* The four-item list is gone. Each section it described carries the same
+     heading two screens later, so it was a table of contents for a page you
+     are about to scroll. What it uniquely carried -- that the airports on the
+     chart are tappable -- is kept, because nothing else on the page says it. */
   body:`<p class="wzLead">You will answer <b>four</b> questions about this one moment.</p>
-        <p class="wzSub">Answer according to what you would actually do as pilot in
-        command. There are no right or wrong answers, and your responses are not
-        used to evaluate pilot competence.</p>
-        <ul class="wzList">
-          <li><b>Observations &amp; radar</b> — a track-up chart. Tap either airport to
-              bring up its camera.</li>
-          <li><b>Out the window</b> — what you can see ahead from the cockpit.</li>
-          <li><b>Cross-section</b> — cloud bases and tops over the 45 minutes still to
-              fly, against your altitude.</li>
-          <li><b>Text briefing</b> — every observation, forecast and advisory in words.</li>
-        </ul>`}
+        <p class="wzSub">Answer as you would actually act as pilot in command.
+        There are no right or wrong answers, and this is not a test of competence.</p>
+        <p class="wzSub">On the chart, tap either airport to bring up its camera.</p>`}
 ];
 const WZ_TILES=[
- ["runway","Destination","KBBB · Rwy 23","4,000 ft · non-towered · AWOS · pattern 1,000 ft AGL"],
- ["alt","Alternate","KCCC · Rwy 18/36","4,500 ft · AWOS · no TAF · about 50 min, northeast · diversion route stays outside the stronger shower area"],
+ ["runway","Destination","KBBB · Rwy 23","4,000 ft · non-towered · AWOS · pattern 1,000 ft AGL · 45 min ahead"],
+ ["alt","Alternate","KCCC · Rwy 18/36","4,500 ft · AWOS · no TAF · 50 min northeast · route clear of the stronger showers"],
  ["fuel","Fuel","90 minutes +","at least, remaining at landing either way"],
  ["sun","Daylight","2 hours +","at least, remaining"]
 ];
