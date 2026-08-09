@@ -427,7 +427,20 @@ input[type=range].untouched:focus-visible::-moz-range-thumb{opacity:.45}
 .slbox input[type=range]{display:block;width:100%}
 /* Buttons below the track, not flanking it. Drag remains optional -- the
    stepper is still the accessible path to both DVs for an unsteady hand. */
-.slBtns{display:flex;justify-content:space-between;margin-top:.55rem}
+.slBtns{display:flex;justify-content:space-between;align-items:center;
+  gap:.5rem;margin-top:.55rem}
+/* The document's own response format is "Enter a number from 0 to 100". Without
+   a field the only routes to a value were a drag on a bar whose thumb is hidden
+   until first touch, or the +/- steppers -- 50 taps to reach an endpoint, on an
+   instrument whose stated target user is a 75-year-old. Both push answers toward
+   the middle, hardest for exactly the participants requirement 1 names. */
+.numWrap{flex:1 1 auto;min-width:0;text-align:center}
+.numLbl{display:block;font-size:var(--fs-sm);color:var(--muted);font-weight:600;
+  margin-bottom:.15rem}
+.numIn{width:100%;max-width:7rem;min-height:var(--tap);text-align:center;
+  font-family:var(--mono);font-size:var(--fs-xl);font-weight:700;color:var(--navy);
+  border:2px solid var(--line2);border-radius:10px;padding:.2rem}
+.numIn.bad{border-color:var(--ifr)}
 .slStep{flex:0 0 auto;width:var(--tap);height:var(--tap);border-radius:50%;
   border:2px solid var(--navy);background:#fff;color:var(--navy);
   font-size:1.6rem;line-height:1;font-weight:700;cursor:pointer;padding:0}
@@ -687,6 +700,11 @@ html[data-dev="phone-sm"] #sitGrid{grid-template-columns:1fr 1fr}
           ><span class="end">100<br>definitely<br>KBBB</span></div>
         <div class="slBtns">
           <button class="slStep" id="slDown" aria-label="Decrease by one">&minus;</button>
+          <div class="numWrap">
+            <label class="numLbl" for="slNum">or type a number</label>
+            <input class="numIn" id="slNum" type="text" inputmode="numeric" maxlength="3"
+                   autocomplete="off" aria-label="Likelihood of choosing KBBB, type a number from 0 to 100">
+          </div>
           <button class="slStep" id="slUp" aria-label="Increase by one">+</button>
         </div>
       </div>
@@ -839,15 +857,15 @@ const SCEN={
    is shown alongside the 2000Z observations rather than discarded. */
 const METARS=[
  {stn:"KBBB",dest:true,zulu:2000,
-  raw:"KBBB 192000Z 23014G22KT 4SM RA BR OVC015 18/17 A2990",
+  raw:"KBBB 192000Z 23014G22KT 4SM RA BR OVC015",
   wind:"230° at 14 kt, gusting 22",vis:"4 SM",wx:"Rain, mist",cld:"OVC015",tt:"18/17",alt:"A2990",
   plot:{wdir:230,wspd:14,gst:22,vis:4,ceil:1500,cover:"OVC",temp:18,dew:17}},
  {stn:"KCCC",zulu:2000,
-  raw:"KCCC 192000Z 24010G16KT 7SM -RA BKN030 22/20 A2992",
+  raw:"KCCC 192000Z 24010G16KT 7SM -RA BKN030",
   wind:"240° at 10 kt, gusting 16",vis:"7 SM",wx:"Light rain",cld:"BKN030",tt:"22/20",alt:"A2992",
   plot:{wdir:240,wspd:10,gst:16,vis:7,ceil:3000,cover:"BKN",temp:22,dew:20}},
  {stn:"KBBB",dest:true,zulu:1900,prior:true,
-  raw:"KBBB 191900Z 22012G18KT 6SM -RA BKN025 22/21 A2993",
+  raw:"KBBB 191900Z 22012G18KT 6SM -RA BKN025",
   wind:"220° at 12 kt, gusting 18",vis:"6 SM",wx:"Light rain",cld:"BKN025",tt:"22/21",alt:"A2993",
   plot:{wdir:220,wspd:12,gst:18,vis:6,ceil:2500,cover:"BKN",temp:22,dew:21}}
 ];
@@ -952,7 +970,24 @@ addEventListener("focus",()=>TEL.log("focus"));
 document.addEventListener("visibilitychange",()=>TEL.log("vis",{hidden:document.hidden}));
 /* One response set, not two. The delta between measurements no longer exists,
    so nothing derived is computed from a pair. */
-const RESULT={response:{destination_likelihood:null},stage:null,meta:null,events:null};
+/* Every run carries an id and a boot time, and remembers its own stage. Without
+   them a reload -- or a Qualtrics iframe re-render after finishing -- booted
+   fresh and rewrote the row as an incomplete "committed" record with pressure
+   and reason blanked. In the data that is indistinguishable from an honest
+   abandonment between page 1 and page 2, which is the one missingness pattern
+   the split-page design exists to make interpretable. */
+const RUN_ID=(()=>{ try{ return crypto.randomUUID(); }
+  catch(e){ return "r"+Math.abs(Math.floor(performance.now()*1e6)).toString(36)
+    +Math.abs(Math.floor(performance.timeOrigin||0)).toString(36); } })();
+const BOOT_ISO=new Date().toISOString();
+const SS=(()=>{ try{ sessionStorage.setItem("_t","1"); sessionStorage.removeItem("_t");
+  return sessionStorage; }catch(e){ return null; } })();
+const priorStage=SS?SS.getItem("dv_stage"):null;
+const ATTEMPT=(()=>{ if(!SS) return 1;
+  const n=parseInt(SS.getItem("dv_attempt")||"0",10)+1;
+  SS.setItem("dv_attempt",String(n)); return n; })();
+const RESULT={run_id:RUN_ID,boot:BOOT_ISO,attempt:ATTEMPT,
+  response:{destination_likelihood:null},stage:null,meta:null,events:null};
 const stage=()=>SCEN;
 
 /* ==================================================================== *
@@ -2000,7 +2035,7 @@ function photoFinish(g,W,H,clear){
    that carries no reporting delay. There is no preflight view any more: the
    scenario begins airborne.                                               */
 const otwC=document.getElementById("otw");
-/* img/otw_enroute.jpg — from the cockpit at 3,500 ft on course, 2000Z.
+/* img/otw_enroute.jpg — from the cockpit at cruise on course, 2000Z.
    Present, it replaces the rendered view; absent, the renderer takes over. */
 const OTW_PHOTO={};
 function probeOtwPhotos(done){
@@ -2049,7 +2084,7 @@ function drawOTW(){
   cv.width=saveW; cv.height=saveH;
   document.getElementById("otwTag").textContent=st.zulu+"Z";
   document.getElementById("otwNote").textContent=
-    "Looking ahead on course from 3,500 ft, in visual conditions below the cloud layer.";
+    `Looking ahead on course from ${CRUISE_TXT}, in visual conditions below the cloud layer.`;
 }
 // light rain on the windscreen; the cockpit is the only place this belongs
 function rainOnGlass(g,W,H,amt){
@@ -2477,7 +2512,10 @@ function makeSlider(key,ids,onChange){
       TEL.log("slider_first",{item:key,ms:R.firstTouchMs[key]});}
     R.moves[key]++; R[key]=+el.value;
     el.classList.remove("untouched"); out.classList.remove("empty");
-    out.textContent=el.value; paint(); onChange();
+    out.textContent=el.value; paint();
+    const n=ids.num?document.getElementById(ids.num):null;
+    if(n && n.value!==String(el.value) && document.activeElement!==n) n.value=el.value;
+    onChange();
   };
   /* Drag is the hardest gesture for an older hand — tremor, dry fingertips,
      capacitive dropout. Never make it the only path to a measured value. */
@@ -2487,17 +2525,38 @@ function makeSlider(key,ids,onChange){
     el.value=Math.min(+el.max,(R[key]===null?50:R[key])+1); slide(); });
   el.addEventListener("input",slide);
   el.addEventListener("change",()=>TEL.log("slider_set",{item:key,v:R[key],moves:R.moves[key]}));
+  /* Typed entry, the method the scenario document actually specifies. Accepts
+     only 0-100; anything else marks the field and sets nothing, so a typo
+     cannot become a response. Typing and dragging stay in sync both ways. */
+  const num=ids.num?document.getElementById(ids.num):null;
+  if(num){
+    num.addEventListener("input",()=>{
+      const t=num.value.replace(/[^0-9]/g,"");
+      if(t!==num.value) num.value=t;
+      if(t===""){ num.classList.remove("bad"); return; }
+      const v=parseInt(t,10);
+      if(v>=0&&v<=100){ num.classList.remove("bad"); el.value=v; slide(); }
+      else num.classList.add("bad");
+    });
+    num.addEventListener("blur",()=>{
+      if(num.value==="" && R[key]!==null) num.value=R[key];
+      num.classList.remove("bad");
+    });
+  }
   /* Deliberately NO keydown handler: one here used to call the slide path on
      ANY key while the range had focus, so a bare Tab wrote a midpoint value
      and enabled submission. Arrow, Home, End and PageUp/Down all fire `input`,
      which is bound above, so the shim bought nothing but the bug. */
   return {el,out,paint,reset(){
     el.value=50; el.classList.add("untouched");
-    out.textContent="Drag the slider, or use − and +"; out.classList.add("empty");
+    out.textContent="Type a number, drag the slider, or use − and +";
+    out.classList.add("empty");
+    const n=ids.num?document.getElementById(ids.num):null;
+    if(n){ n.value=""; n.classList.remove("bad"); }
     paint();
   }};
 }
-const S_INT=makeSlider("intent",{range:"sl",val:"slVal",down:"slDown",up:"slUp"},()=>ready());
+const S_INT=makeSlider("intent",{range:"sl",val:"slVal",down:"slDown",up:"slUp",num:"slNum"},()=>ready());
 let S_PRS=null;                      // built on the follow-up page, not here
 const trigWrap=document.getElementById("trigwrap"), trigTa=document.getElementById("trig");
 
@@ -2550,6 +2609,7 @@ adv.addEventListener("click",()=>{
     reason:"",                                // item 4, filled on the next page
     first_touch_ms:R.firstTouchMs, slider_moves:R.moves,
     screen_time_ms:Math.round(performance.now()-R.tShown)};
+  adv.disabled=true;                 // no second submit from the same page
   TEL.log("submit",{likelihood:R.intent,act:R.act});
   // Commit to the record NOW, before the follow-up page exists. The claim on
   // that page that the answer is recorded is only true because of this line.
@@ -2574,6 +2634,11 @@ function showFollowUp(st){
       <div class="slends"><span>0<br>no<br>pressure</span><span class="end">100<br>extreme<br>pressure</span></div>
       <div class="slBtns">
         <button class="slStep" id="prDown" aria-label="Decrease by one">&minus;</button>
+        <div class="numWrap">
+          <label class="numLbl" for="prNum">or type a number</label>
+          <input class="numIn" id="prNum" type="text" inputmode="numeric" maxlength="3"
+                 autocomplete="off" aria-label="Perceived pressure, type a number from 0 to 100">
+        </div>
         <button class="slStep" id="prUp" aria-label="Increase by one">+</button>
       </div>
     </div>
@@ -2603,7 +2668,7 @@ function showFollowUp(st){
     go.disabled=R.pressure===null;
     msg.textContent=R.pressure===null?"Move the pressure slider to finish.":"";
   };
-  S_PRS=makeSlider("pressure",{range:"pr",val:"prVal",down:"prDown",up:"prUp"},gate2);
+  S_PRS=makeSlider("pressure",{range:"pr",val:"prVal",down:"prDown",up:"prUp",num:"prNum"},gate2);
   ta.addEventListener("input",()=>{R.why=ta.value; RESULT.response.reason=R.why.trim();});
   gate2();
   go.addEventListener("click",()=>{
@@ -2781,6 +2846,7 @@ function exportResult(stage){
      first field silently skipped every field after it. The bridge result is
      now recorded, so a run that wrote thirteen fields and a run that wrote
      zero are no longer byte-identical in your data. */
+  if(SS) SS.setItem("dv_stage",stage);
   const bridge={available:false,written:0,failed:[],error:null};
   try{
     const QE=window.Qualtrics&&Qualtrics.SurveyEngine;
@@ -2788,6 +2854,9 @@ function exportResult(stage){
     if(bridge.available){
       const put=(k,v)=>{ try{ QE.setEmbeddedData(k, v===null||v===undefined?"":String(v));
         bridge.written++; }catch(e){ bridge.failed.push(k); } };
+      put("DV_run_id",RUN_ID);
+      put("DV_boot",BOOT_ISO);
+      put("DV_attempt",ATTEMPT);
       put("DV_stage",stage);                        // committed | partial_followup | complete
       put("DV_likelihood",r.destination_likelihood);// item 1, 0-100
       put("DV_action",r.action);                    // item 2, index 0-3
@@ -2954,7 +3023,19 @@ probeCamPhotos(()=>{ if(document.getElementById("camGrid")) drawCams(); });
 probeOtwPhotos(()=>drawOTW());
 if(GLOK){ buildGL(); buildLandmarks(); }
 enterStage();
-showGate();
+/* A run that already completed does not start over. Re-entering after finishing
+   used to boot fresh and overwrite the finished row with a partial one. */
+if(priorStage==="complete"){
+  gateCard.className="gatecard";
+  gateCard.innerHTML=`<h2>Your response is already recorded</h2>
+    <div class="lead">Thank you — this scenario has been completed on this device.</div>
+    <p>Nothing further is needed. If you were sent here from a survey, please
+       return to that tab to finish.</p>`;
+  gate.classList.remove("off");
+  TEL.log("reentry_blocked",{attempt:ATTEMPT});
+}else{
+  showGate();
+}
 
 /* ---- access code -------------------------------------------------------
    A pilot-phase door, NOT a security control. The page is static and the repo
