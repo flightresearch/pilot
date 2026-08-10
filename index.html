@@ -2282,7 +2282,7 @@ function drawOTW(){
     g.drawImage(ph,(W-dw)/2,(H-dh)/2,dw,dh);
     document.getElementById("otwTag").textContent=st.zulu+"Z";
     document.getElementById("otwNote").textContent=
-      `Looking ahead on course from ${CRUISE_TXT}, in visual conditions below the cloud layer.`;
+      `Looking ahead on course from ${CRUISE_TXT}, in visual conditions below the cloud layer, with legal VFR cloud clearance.`;
     return;
   }
   if(!GLOK) return;
@@ -2306,7 +2306,7 @@ function drawOTW(){
   cv.width=saveW; cv.height=saveH;
   document.getElementById("otwTag").textContent=st.zulu+"Z";
   document.getElementById("otwNote").textContent=
-    `Looking ahead on course from ${CRUISE_TXT}, in visual conditions below the cloud layer.`;
+    `Looking ahead on course from ${CRUISE_TXT}, in visual conditions below the cloud layer, with legal VFR cloud clearance.`;
 }
 // light rain on the windscreen; the cockpit is the only place this belongs
 function rainOnGlass(g,W,H,amt){
