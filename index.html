@@ -370,6 +370,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 .trend{font-size:var(--fs-md);color:var(--ink2);font-family:var(--mono);font-weight:700;
   padding:0 .65rem .5rem;line-height:1.35}
 .rawRow{padding:.35rem .65rem;border-top:1px dashed var(--line);background:#fafcfd}
+.rawNote{display:block;margin-top:.3rem;font-family:var(--sans);font-size:var(--fs-xs);color:var(--muted)}
 .raw{font-family:var(--mono);font-size:var(--fs-md);line-height:1.55;color:#22323f;
   white-space:pre-wrap;word-break:break-word;margin:.35rem 0 .2rem}
 .disc{border:0;background:none;color:var(--blue);font-size:var(--fs-md);cursor:pointer;
@@ -969,7 +970,7 @@ const MISSION_CHIPS=[
    the authored facts with the connective words removed. Every clause in the
    document's Scenario Information table is still present. */
 const SITUATION=[
- ["plane","Aircraft","Single engine","Day VFR only · no autopilot"],
+ ["plane","Aircraft","Single engine","Day VFR only, not equipped for IFR · no autopilot"],
  ["route","Route","135 NM","Rural · flat terrain, no obstacle concerns · approaching KBBB from the west-southwest"],
  ["runway","Destination","KBBB · Rwy 23, 4,000 ft","Non-towered · AWOS · pattern 1,000 ft AGL · Class G below 700 ft AGL, Class E above"],
  /* The document's clause "the diversion route remains outside the stronger
@@ -2655,8 +2656,16 @@ function obsCard(m){
       <div class="m"><dt>Weather</dt><dd class="words">${m.wx}</dd></div>
       <div class="m"><dt>Clouds</dt><dd>${p.cover}</dd></div>
     </div>
-    <div class="rawRow"><button class="disc" data-raw="${id}">Show raw METAR ▾</button>
-      <pre class="raw" id="${id}" style="display:none">${esc(m.raw)}</pre></div>
+    <!-- Labelled an extract, not a METAR. The scenario document specifies wind,
+         visibility, present weather and sky condition; temperature, dew point
+         and altimeter are not given, and inventing them would add decision-
+         relevant information the author never authored (a small spread implies
+         fog, a falling altimeter implies deterioration). But a coded report
+         missing its mandatory groups reads as malformed to any pilot who opens
+         it, so the label states what it is instead. -->
+    <div class="rawRow"><button class="disc" data-raw="${id}">Show coded report ▾</button>
+      <pre class="raw" id="${id}" style="display:none">${esc(m.raw)}
+<span class="rawNote">Wind, visibility, present weather and sky condition only.</span></pre></div>
   </div>`;
 }
 function renderBrief(){
@@ -2696,8 +2705,9 @@ function renderBrief(){
     const el=document.getElementById(b.dataset.raw);
     const open=el.style.display==="none";
     el.style.display=open?"block":"none";
-    b.textContent=(open?"Hide raw ▴":b.textContent.replace("▴","▾").replace("Hide","Show"));
-    if(open)b.textContent=b.textContent.replace("Show","Hide").replace("▾","▴");
+    // one source for the wording; the old pair of replace() calls still said
+    // "raw" after the button itself had been relabelled "coded report"
+    b.textContent=(open?"Hide coded report ▴":"Show coded report ▾");
     TEL.log("raw",{id:b.dataset.raw,on:open});
   }));
 }
@@ -2925,7 +2935,16 @@ const WIZ=[
         </div>`},
 { k:"aircraft", head:"The aeroplane",
   art:`<img class="wzImg" src="img/aircraft.jpg" alt="A single-engine high-wing light aeroplane">`,
-  body:`<p class="wzLead">Single engine. Day VFR only. No autopilot.</p>
+  /* "Day VFR only" now says what it means. As an aeroplane descriptor a pilot
+     reads it as "not certificated or equipped for IFR", but it can also be read
+     as merely describing this flight -- and on that reading an instrument-rated
+     participant has a legal option (climb, obtain a clearance, fly an approach)
+     that a non-instrument-rated participant does not. That option would raise
+     their stated likelihood of continuing to KBBB for reasons unrelated to risk
+     perception, which is a certificate-linked advantage in the dependent
+     variable itself. Stating the equipment removes it for everyone. */
+  body:`<p class="wzLead">Single engine. Day VFR only — not equipped for IFR.
+        No autopilot.</p>
         <p class="wzSub">You are pilot in command — current, proficient, familiar
         with the route, flying alone.</p>`},
 { k:"route", head:"Where you are going",
@@ -2943,9 +2962,16 @@ const WIZ=[
      heading two screens later, so it was a table of contents for a page you
      are about to scroll. What it uniquely carried -- that the airports on the
      chart are tappable -- is kept, because nothing else on the page says it. */
+  /* The VFR constraint is the document's own wording, moved forward. It used to
+     appear ONLY on the decision card, after the whole briefing had been read --
+     by which point an instrument-rated participant may already have framed the
+     problem as "I would pick up a clearance". Stating the constraint before the
+     weather is seen puts every certificate level on the same footing while the
+     judgment is actually forming. It is repeated on the decision card. */
   body:`<p class="wzLead">You will answer <b>four</b> questions about this one moment.</p>
         <p class="wzSub">Answer as you would actually act as pilot in command.
         There are no right or wrong answers, and this is not a test of competence.</p>
+        <p class="wzSub"><b>Assume you must remain within VFR limitations.</b></p>
         <p class="wzSub">On the chart, tap either airport to bring up its camera.</p>`}
 ];
 const WZ_TILES=[
