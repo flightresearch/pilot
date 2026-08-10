@@ -233,16 +233,25 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 #flightHdr{font-size:var(--fs-sm);font-weight:700;color:var(--muted);
   border-top:2px solid var(--line2);padding-top:.45rem;margin-bottom:.4rem}
 /* min track must stay under ~7.8rem or an iPhone 8 drops to one column */
-#sitGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(7.4rem,1fr));
-  gap:.4rem;grid-auto-rows:1fr}
-.sitItem{margin:0;display:flex;flex-direction:column;align-items:center;text-align:center;
-  gap:.15rem;background:#f4f7f9;border:1px solid var(--line);border-radius:10px;
-  padding:.55rem .35rem}
-.sitItem .ico{width:2.9rem;height:2.9rem;color:var(--blue);margin-bottom:.15rem}
-.sitItem dd{margin:0;font-size:var(--fs-lg);line-height:1.15;font-weight:700;color:var(--ink)}
-.sitItem dt{font-size:var(--fs-sm);color:var(--muted);font-weight:600}
-.sitItem small{font-size:var(--fs-sm);color:var(--ink2);line-height:1.25}
-@media (min-width:1300px){ #sitGrid{grid-template-columns:repeat(6,1fr)} }
+/* Rows, not centred tiles. Seven tiles of equal height whose sub-lines ran
+   from "remaining" to a 96-character airspace clause left most of them mostly
+   empty space with a stranded icon -- grid-auto-rows:1fr stretched every tile
+   to the tallest. A left-aligned row lets each item be its own height, and
+   puts the icons, labels and values on shared vertical lines so the block
+   scans as a table instead of a scatter of cards. */
+#sitGrid{display:grid;grid-template-columns:1fr;gap:.4rem}
+@media (min-width:700px){ #sitGrid{grid-template-columns:1fr 1fr} }
+.sitItem{margin:0;display:flex;align-items:flex-start;gap:.6rem;
+  background:#f4f7f9;border:1px solid var(--line);border-radius:12px;
+  padding:.6rem .7rem}
+.sitItem .ico{width:2.1rem;height:2.1rem;flex:0 0 auto;color:var(--blue);margin-top:.15rem}
+.sitItem .sTxt{min-width:0}
+.sitItem dt{font-size:var(--fs-xs);font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.06em;line-height:1.2}
+.sitItem dd{margin:.05rem 0 0;font-size:var(--fs-lg);line-height:1.2;
+  font-weight:700;color:var(--ink)}
+.sitItem small{display:block;font-size:var(--fs-sm);color:var(--ink2);
+  line-height:1.3;margin-top:.1rem}
 
 /* ---------------- map ---------------- */
 /* Controls WRAP into a grid: a horizontally scrolling row hides options. */
@@ -538,7 +547,8 @@ html[data-dev="phone-sm"]{--pad:.55rem}
    and the cross-section -- on the device the requirements name as primary, and
    on the two graphics carrying the weather geometry. */
 html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
-html[data-dev="phone-sm"] #sitGrid{grid-template-columns:1fr 1fr}
+/* the row layout is single-column on a phone; two columns squeezed a 2.1rem
+   icon plus an uppercase label plus a value into ~9rem and wrapped every one */
 
 /* pair the camera images side by side only when each still has real width */
 @media (min-width:560px){ .camPair{grid-template-columns:1fr 1fr} }
@@ -575,8 +585,8 @@ html[data-dev="phone-sm"] #sitGrid{grid-template-columns:1fr 1fr}
   /* briefing cards two-up under full-width section headings */
   #briefBody{display:grid;grid-template-columns:1fr 1fr;gap:0 1rem;align-items:start}
   .briefH{grid-column:1/3}
-  /* the situation tiles have room for four across at this width */
-  #sitGrid{grid-template-columns:repeat(4,1fr)}
+  /* two columns of rows, not four columns of cards: the sub-lines need width */
+  #sitGrid{grid-template-columns:1fr 1fr}
   /* Keep the form to a readable measure inside a full-width card. Unconstrained
      it ran 1,383px, which gives a 0-100 slider a metre of travel and sets the
      action options as single very long lines. */
@@ -892,6 +902,11 @@ const ICO={
  family:'<circle cx="6.6" cy="10.2" r="2.3"/><path d="M3.3 21v-4.6a3.3 3.3 0 0 1 6.6 0V21"/>'+
         '<circle cx="12.2" cy="8.8" r="2.5"/><path d="M8.7 21v-5.8a3.5 3.5 0 0 1 7 0V21"/>'+
         '<circle cx="17.8" cy="12" r="1.9"/><path d="M15.1 21v-3.2a2.7 2.7 0 0 1 5.4 0V21"/>',
+ // pilot: head with a headset band and the boom mic
+ pilot:'<circle cx="12" cy="9.4" r="3.6"/>'+
+       '<path d="M5.6 21v-1.6a6.4 6.4 0 0 1 12.8 0V21"/>'+
+       '<path d="M6.6 10.2V9a5.4 5.4 0 0 1 10.8 0v1.2"/>'+
+       '<path d="M17.4 11.4v1.9a4.2 4.2 0 0 1-2.6 3.9"/>',
  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 12V3M12 12l7.79-4.5"/>'+
        '<path d="M12 12V3A9 9 0 0 1 19.79 7.5Z" fill="currentColor" stroke="none" opacity=".16"/>',
  case:'<rect x="3" y="8" width="18" height="11.5" rx="2.2"/>'+
@@ -938,19 +953,23 @@ const MISSION_HERO={
 const MISSION_CHIPS=[
   ["case","Not an emergency","no employment obligation and no financial loss"]
 ];
+/* Values carry the headline; the sub-line carries the qualifiers, trimmed to
+   the authored facts with the connective words removed. Every clause in the
+   document's Scenario Information table is still present. */
 const SITUATION=[
- ["plane","Aircraft","Single engine","day VFR only · no autopilot"],
- ["route","Route","135 NM","mostly rural · flat terrain, no significant terrain or obstacle concerns"],
- ["runway","Destination","KBBB · Rwy 23","4,000 ft · non-towered · AWOS · pattern altitude 1,000 ft AGL · Class G below 700 ft AGL, Class E above"],
+ ["plane","Aircraft","Single engine","Day VFR only · no autopilot"],
+ ["route","Route","135 NM","Rural · flat terrain, no obstacle concerns · approaching KBBB from the west-southwest"],
+ ["runway","Destination","KBBB · Rwy 23, 4,000 ft","Non-towered · AWOS · pattern 1,000 ft AGL · Class G below 700 ft AGL, Class E above"],
  /* The document's clause "the diversion route remains outside the stronger
     shower area" was truncated away here. It existed only as chart geometry --
     recoverable only by projecting the dashed 045 leg across the mosaic -- so a
     participant who reads rather than measures never received a fact the
     scenario states plainly, about the option item 1 is asking them to weigh. */
- ["alt","Alternate","KCCC · Rwy 18/36","4,500 ft · AWOS · no TAF · about 50 minutes away, northeast · the diversion route remains outside the stronger shower area"],
- ["fuel","Fuel","90 minutes +","at least, remaining at landing either way"],
- ["sun","Daylight","2 hours +","at least, remaining"],
- ["plane","You","Current and proficient","familiar with the route · flying alone"]
+ ["alt","Alternate","KCCC · Rwy 18/36, 4,500 ft","AWOS · no TAF · about 50 minutes northeast · diversion route remains outside the stronger shower area"],
+ ["fuel","Fuel","90 minutes +","At least, remaining at landing either way"],
+ ["sun","Daylight","2 hours +","At least, remaining"],
+ // its own glyph: sharing the aircraft icon made two different rows look alike
+ ["pilot","You","Current and proficient","Familiar with the route · flying alone"]
 ];
 const MISSION="You are the pilot in command, about 45 minutes from KBBB on a 135 NM day-VFR flight "+
   "to an important family commitment. Arriving on time matters personally, but the trip is not "+
@@ -1109,6 +1128,42 @@ const DBZ=[[5,"#04E9E7"],[10,"#019FF4"],[15,"#0300F4"],[20,"#02FD02"],[25,"#01C5
   [30,"#008E00"],[35,"#FDF802"],[40,"#E5BC00"],[45,"#FD9500"],[50,"#FD0000"],
   [55,"#D40000"],[60,"#BC0000"],[65,"#F800FD"],[70,"#9854C6"]];
 function dbzColor(v){let c=null;for(const [t,col] of DBZ){if(v>=t)c=col;}return c;}
+/* One isolated blob on an otherwise blank mosaic was not what this situation
+   looks like on radar. BOTH stations report rain -- KBBB "4 SM in rain and
+   mist", KCCC "7 SM in light rain" -- and the regional trend is light rain and
+   mist across the area. A scope showing nothing at either station while both
+   are reporting rain contradicts the observations the participant is reading.
+
+   So the field is built in three parts, exactly as a real scope would show a
+   passing band: broad light stratiform echo over the region, the stronger
+   showers embedded west of KBBB (unchanged, still the authored 10-15 NM), and
+   decaying remnant cells downstream to the east that have already gone
+   through. The remnants are what makes it read as weather in motion rather
+   than a lone cell that appeared from nowhere. */
+/* Subtracting 0.30 before clamping is what keeps this SCATTERED. Without it
+   the sheet covered 92% of the chart in cyan and buried both the basemap and
+   the core -- a solid wall reads no more truthfully than a lone blob. Tuned by
+   measuring areal coverage: 22% of the area now returns 5 dBZ or more, which
+   is what a band of light rain and mist actually paints. */
+function stratAt(x,z,zulu){
+  const t =fbm2(x*.055+zulu*.0025, z*.055);
+  const t2=fbm2(x*.14 -zulu*.004,  z*.14+9.1);
+  // thins out well behind the front, where the air has already dried
+  const behind=1-Math.min(1,Math.max(0,(x-(shieldCx(zulu)+46))/85));
+  return Math.max(0,(0.62*t+0.30*t2-0.30))*behind;
+}
+// offsets are from the moving band, so the remnants travel east with it
+const REMNANTS=[{dx:25,dz:14,r:8.5,amp:.60},{dx:39,dz:-7,r:6.5,amp:.46},
+                {dx:52,dz:20,r:7.5,amp:.34}];
+function remnantAt(x,z,zulu){
+  let m=0;
+  for(const c of REMNANTS){
+    const rx=shieldCx(zulu)+c.dx, rz=APTS.KBBB.z+c.dz;
+    const d=Math.hypot((x-rx)/c.r,(z-rz)/c.r);
+    m=Math.max(m,c.amp*Math.exp(-d*d));
+  }
+  return m;
+}
 function dbzAt(x,z,zulu){
   const s=shieldAt(x,z,zulu), tex=fbm2(x*.19+zulu*.004,z*.19);
   // "Stronger showers" with "no lightning detected" -- so the palette is
@@ -1116,7 +1171,10 @@ function dbzAt(x,z,zulu){
   const peak=38;
   // s^1.6 steepens the edge; a linear falloff smeared 5-15 dBZ across the whole
   // chart and made light rain look like a far larger area than it is
-  return Math.min(peak, Math.pow(s,1.6)*(.60+.70*tex)*peak-5);
+  const core =Math.pow(s,1.6)*(.60+.70*tex)*peak-5;
+  const strat=Math.pow(stratAt(x,z,zulu),1.2)*(0.70+0.50*tex)*46-2;  // light rain
+  const rem  =remnantAt(x,z,zulu)*(0.70+0.60*tex)*33-4; // decayed, well short of the core
+  return Math.min(peak, Math.max(core,strat,rem));
 }
 /* Current observations first, the 1900Z KBBB report last and labelled as
    prior. Order is fixed -- there is only one time point now, so nothing can
@@ -1130,9 +1188,10 @@ const obsOf=stn=>METARS.find(m=>m.stn===stn&&!m.prior);
 /* ---- device classing -------------------------------------------------
    Canvas text is drawn in device pixels and cannot inherit the rem scale,
    so TS carries the same intent across to the charts. Small screens get
-   proportionally LARGER canvas text and correspondingly less of it (see
-   DETAIL), which is the only way both stay legible.                     */
-let TS=1.25, DEV="desktop", DETAIL=true;
+   proportionally LARGER canvas text -- but the SAME text. Type scale is the
+   only thing allowed to vary by device; a chart that carries different
+   information on a phone is a different stimulus, not a responsive layout. */
+let TS=1.25, DEV="desktop";
 function applyDevice(){
   const w=innerWidth, h=innerHeight;
   const coarse = matchMedia("(pointer:coarse)").matches;
@@ -1148,8 +1207,6 @@ function applyDevice(){
   // matched to the 20-26px UI type so chart labels read at the same size
   TS = {"phone-sm":1.78,"phone":1.74,"small":1.66,"tablet":1.60,
         "desktop":1.50,"desktop-lg":1.44}[DEV];
-  // full station detail only where the chart is wide enough to carry it
-  DETAIL = w>=760;
   return {DEV,TS,short,coarse};
 }
 const S = n => n*TS*MDPR;              // canvas size helper
@@ -1328,6 +1385,14 @@ function drawMap(C,opts){
   const {X,Y,s}=TR;
   g.setTransform(1,0,0,1,0,0);
 
+  /* Obstacles for label placement, rebuilt every draw. The top-right corner
+     belongs to the north arrow and the frame-time stamp; each station circle
+     protects itself; own-ship is added where it is drawn. */
+  KEEPOUT=[];
+  koAdd(W-S(64),0,W,S(68));
+  for(const k in APTS){ const a=APTS[k],ax=X(a.x,a.z),ay=Y(a.x,a.z),rr=S(14);
+    koAdd(ax-rr,ay-rr,ax+rr,ay+rr); }
+
   // --- GFA-style light basemap ---
   g.fillStyle="#eceee8";g.fillRect(0,0,W,H);
   const cell=Math.max(5*MDPR,s*2.4);
@@ -1397,6 +1462,8 @@ function drawMap(C,opts){
   const showShip=(opts.ownship!==undefined?opts.ownship:weather);
   if(showShip){
     const p=acPosAt(),px=X(p.x,p.z),py=Y(p.x,p.z);
+    // own-ship symbol plus its altitude label: station labels must route round
+    koAdd(px-S(15),py-S(15),px+S(15)+S(16)+S(60),py+S(15));
     // Little aeroplane rather than an arrowhead: reads instantly as "me".
     g.save();g.translate(px,py);              // track up -> nose is screen up
     const u=S(1);
@@ -1424,10 +1491,11 @@ function drawMap(C,opts){
     g.fill(); g.stroke();
     g.restore();
     g.restore();
-    if(DETAIL){        // on a phone the cross-section already shows the altitude
-      g.font=`700 ${S(10)}px ui-monospace,monospace`;g.textAlign="left";g.textBaseline="middle";
-      g.fillStyle="#101a52";haloText(g,CRUISE_TXT,px+S(16),py);
-    }
+    // Always. "The cross-section already shows the altitude" was true of a
+    // different card three screens away, and it left the route chart on a
+    // phone without the one number that makes the deck heights mean anything.
+    g.font=`700 ${S(10)}px ui-monospace,monospace`;g.textAlign="left";g.textBaseline="middle";
+    g.fillStyle="#101a52";haloText(g,CRUISE_TXT,px+S(16),py);
   }
 
   // --- station plots ---
@@ -1456,6 +1524,23 @@ function haloText(g,t,x,y,halo){
 // KBBB sits up-track, KCCC off to the left in the track-up frame; the plots
 // push away from each other and away from the course line between them
 const STN_OFF={KBBB:{dx:30,dy:-22},KCCC:{dx:-32,dy:-18}};
+
+/* ---- label placement ---------------------------------------------------
+   Fixed offsets are authored for a roomy desktop chart. At phone width the
+   same block is proportionally twice the size, so a fixed offset either runs
+   off the canvas or lands on the very symbol it annotates. Rather than pile
+   up one special case per collision -- circle, north arrow, own-ship, the
+   other station -- every obstacle is registered as a rectangle and the label
+   picks the first candidate position that is clear.
+
+   The point is not tidiness. Every device must render the SAME numbers, so
+   the layout has to bend instead of the content.                          */
+let KEEPOUT=[];
+const koAdd=(x0,y0,x1,y1)=>KEEPOUT.push({x0,y0,x1,y1});
+const koHit=(b)=>KEEPOUT.some(k=>b.x0<k.x1&&b.x1>k.x0&&b.y0<k.y1&&b.y1>k.y0);
+const koArea=(b)=>KEEPOUT.reduce((s,k)=>s+
+  Math.max(0,Math.min(b.x1,k.x1)-Math.max(b.x0,k.x0))*
+  Math.max(0,Math.min(b.y1,k.y1)-Math.max(b.y0,k.y0)),0);
 function drawStation(g,m,X,Y){
   const a=APTS[m.stn],p=m.plot,cat=flightCat(p.ceil,p.vis),col=CATC[cat];
   const cx=X(a.x,a.z),cy=Y(a.x,a.z),R=S(8.5);
@@ -1490,39 +1575,101 @@ function drawStation(g,m,X,Y){
   // text block
   const W=mapC.width, H=mapC.height;
   const ceilTxt=p.ceil>=12000?"no ceiling":`${p.cover} ${p.ceil.toLocaleString()} ft`;
-  const clampX=(v,half)=>Math.max(half+S(3),Math.min(W-half-S(3),v));
 
-  if(!DETAIL){
-    // At phone type sizes four stations cannot carry two labels each without
-    // colliding. The chart answers "where is the weather relative to my
-    // route"; the exact category and numbers are in the METAR cards below,
-    // and the circle colour plus the legend still give category at a glance.
-    // Freshness is NOT flagged on the chart. A "new" marker appears only at
-    // T2 and only on the two stations that worsened, which makes it a
-    // T2-only attentional prime pointing straight at the deterioration.
-    // The age chip on every METAR card carries freshness uniformly instead.
-    g.textAlign="center";g.textBaseline="middle";
-    g.font=`700 ${S(13)}px ui-monospace,monospace`;g.fillStyle="#101a52";
-    const idW=g.measureText(m.stn).width;
-    haloText(g,m.stn,clampX(cx,idW/2),Math.min(H-S(9),cy+R+S(15)));
-    return;
-  }
+  /* The phone branch that used to live here drew the identifier ALONE and
+     returned -- no visibility, no ceiling, no time, no category chip. Its
+     justification ("four stations cannot carry two labels each") was written
+     for version A. Version B plots TWO stations, so the collision it guarded
+     against no longer exists.
 
-  const off=STN_OFF[m.stn], tx=cx+S(off.dx), ty=cy+S(off.dy);
+     It had to go regardless of that. A participant on a phone read a chart
+     with the numbers missing and had to go find them in the cards below; a
+     participant on a desktop read them off the chart directly. Same
+     instrument, two different stimuli, and device is not random -- it
+     correlates with age, and age is a variable this study cares about. Every
+     device now gets identical chart CONTENT. Only the type scale differs,
+     which is what TS is for. */
+  /* Visibility and ceiling stack instead of sharing one line. On a single line
+     "4 SM · OVC 1,500 ft" measures ~224 CSS px against a 375 px chart, so two
+     stations could not both be labelled without running off the canvas -- which
+     is what drove the old phone branch to drop the numbers entirely. Stacked,
+     the widest row is the ceiling at ~142 px and both fit side by side at phone
+     width, so every device can carry the identical block. */
+  const off=STN_OFF[m.stn];
+  let tx=cx+S(off.dx), ty=cy+S(off.dy);
   const right=off.dx>0;
-  g.textAlign=right?"left":"right";g.textBaseline="middle";
-  g.font=`700 ${S(12)}px ui-monospace,monospace`;g.fillStyle="#101a52";
-  haloText(g,m.stn,tx,ty-S(13));
-  g.font=`600 ${S(11)}px ui-monospace,monospace`;g.fillStyle="#2c3a47";
-  haloText(g,`${p.vis} SM · ${ceilTxt}`,tx,ty+S(2));
-  g.font=`${S(10)}px ui-monospace,monospace`;g.fillStyle="#5d6d7c";
-  haloText(g,m.zulu+"Z",tx,ty+S(15));   // both plotted stations are 2000Z
-  // category chip
+  const rows=[
+    {t:m.stn,           f:`700 ${S(12)}px ui-monospace,monospace`, c:"#101a52", dy:-S(20)},
+    {t:`${p.vis} SM`,   f:`600 ${S(11)}px ui-monospace,monospace`, c:"#2c3a47", dy:-S(3)},
+    {t:ceilTxt,         f:`600 ${S(11)}px ui-monospace,monospace`, c:"#2c3a47", dy:S(12)},
+    {t:m.zulu+"Z",      f:`${S(10)}px ui-monospace,monospace`,     c:"#5d6d7c", dy:S(26)}
+  ];
   g.font=`700 ${S(10)}px ui-monospace,monospace`;
   const cw=g.measureText(cat).width+S(10);
-  g.fillStyle=col;g.fillRect(right?tx:tx-cw,ty-S(33),cw,S(14));
+  let wide=cw;
+  for(const r of rows){ g.font=r.f; wide=Math.max(wide,g.measureText(r.t).width); }
+
+  /* Keep the block on the canvas. Offsets are authored for a roomy chart; at
+     phone width the destination's block would start 234 px past the right edge
+     and the alternate's 241 px before the left one, so both were clipped. */
+  const pad=S(4);
+
+  /* Clamping alone is not enough on a narrow chart: pulling the block back
+     inside the canvas can drag it over its own station circle, or up under the
+     north arrow -- which is what turned "OVC 1,500 ft" into "OVC 1,5c N ft" at
+     phone width. So try the authored position first, then a ring of fallbacks,
+     and take the first that is clear of every registered obstacle. */
+  const TOP=-S(40), BOT=S(32), gap=R+S(12);
+  const mk=(ax,ay,rt)=>({x0:rt?ax:ax-wide, x1:rt?ax+wide:ax,
+                         y0:ay+TOP, y1:ay+BOT, ax, ay, rt});
+  const inCanvas=b=>b.x0>=pad&&b.x1<=W-pad&&b.y0>=pad&&b.y1<=H-pad;
+
+  /* Candidates: the authored offset first, then rings at growing radius. A
+     label pushed well clear of its circle is normal cartographic practice so
+     long as a leader line ties it back, and the leader is drawn below. Without
+     the outer rings a phone-width chart had nowhere legal to put the second
+     block and settled for the least-bad overlap -- which is how KBBB's time
+     stamp ended up behind KCCC's station circle. */
+  const cands=[mk(tx,ty,right)];
+  for(const k of [1,1.9,2.9,4.0]){
+    const d=gap*k;
+    cands.push(mk(cx+d,cy,true),        mk(cx-d,cy,false),
+               mk(cx+d,cy-d*.8,true),   mk(cx-d,cy-d*.8,false),
+               mk(cx+d,cy+d*.8,true),   mk(cx-d,cy+d*.8,false),
+               mk(cx-wide/2,cy-d+TOP,true), mk(cx-wide/2,cy+d-TOP,true));
+  }
+  let best=null, bestScore=Infinity;
+  for(const c of cands){
+    // slide horizontally back on-canvas before judging it
+    let ax=c.ax;
+    if(c.rt) ax=Math.min(Math.max(ax,pad), W-pad-wide);
+    else     ax=Math.max(Math.min(ax,W-pad), pad+wide);
+    const cc=mk(ax,c.ay,c.rt);
+    // prefer clear positions; among clear ones, the nearest to the station
+    const dist=Math.hypot((cc.x0+cc.x1)/2-cx,(cc.y0+cc.y1)/2-cy);
+    const score=koArea(cc)*40+(inCanvas(cc)?0:1e9)+dist;
+    if(score<bestScore){ bestScore=score; best=cc; }
+  }
+  tx=best.ax; ty=best.ay; const rt=best.rt;
+  koAdd(best.x0,best.y0,best.x1,best.y1);   // later stations route around this
+
+  // leader line when the block ended up away from its authored side
+  const anchorX=rt?tx:tx, anchorY=ty-S(20);
+  if(Math.hypot(anchorX-cx,anchorY-cy)>R+S(30)){
+    g.strokeStyle="rgba(42,54,68,.45)";g.lineWidth=Math.max(1,S(1.2));
+    g.beginPath();g.moveTo(cx,cy);g.lineTo(anchorX,anchorY);g.stroke();
+  }
+
+  g.textBaseline="middle";
+  for(const r of rows){
+    g.textAlign=rt?"left":"right";
+    g.font=r.f; g.fillStyle=r.c; haloText(g,r.t,tx,ty+r.dy);
+  }
+  // category chip, above the identifier
+  g.font=`700 ${S(10)}px ui-monospace,monospace`;
+  g.fillStyle=col;g.fillRect(rt?tx:tx-cw,ty-S(40),cw,S(14));
   g.fillStyle="#fff";g.textAlign="center";
-  g.fillText(cat,(right?tx+cw/2:tx-cw/2),ty-S(26));
+  g.fillText(cat,(rt?tx+cw/2:tx-cw/2),ty-S(33));
 }
 
 // Airport symbol with no weather attached, for the route-introduction chart.
@@ -1554,7 +1701,10 @@ function drawMapFurniture(g,W,H,s,frameZ){
   // Scale bar. On narrow charts the station labels stack below their circle,
   // and KAAA sits bottom-centre, so the bar moves to the right to clear it.
   const nm=20,len=nm*s;
-  const x0=DETAIL?S(12):(W-len-S(12)), y0=H-S(14);
+  // Fixed at bottom-left on every device. It used to jump to the right edge
+  // below 760px to clear labels that stacked under their circle -- a layout
+  // that no longer exists now the offset block draws everywhere.
+  const x0=S(12), y0=H-S(14);
   g.strokeStyle="#2a3644";g.lineWidth=S(1.9);
   g.beginPath();g.moveTo(x0,y0);g.lineTo(x0+len,y0);
   g.moveTo(x0,y0-S(4.5));g.lineTo(x0,y0+S(4.5));
@@ -1674,7 +1824,8 @@ function drawXSec(){
   g.beginPath();g.moveTo(X(.02),Y(CRUISE_FT));g.lineTo(X(.98),Y(CRUISE_FT));g.stroke();g.setLineDash([]);
   g.fillStyle="#1a5fa8";g.font=`700 ${S(11)}px ui-monospace,monospace`;
   g.textAlign="left";g.textBaseline="bottom";
-  haloText(g,(DETAIL?"planned cruise ":"cruise ")+CRUISE_TXT,X(.03),Y(CRUISE_FT)-S(4));
+  // One wording everywhere. Two devices must not label the same line differently.
+  haloText(g,"planned cruise "+CRUISE_TXT,X(.03),Y(CRUISE_FT)-S(4));
 
   // own-ship at the left edge: the section starts where the aeroplane is
   g.fillStyle="#101a52";
@@ -2338,9 +2489,11 @@ function drawCams(){
              carries it, and on the solo layout there is no second pane to
              tell apart -->
         <div class="camShot solo"><img src="${ph.src}" alt="Aerodrome view at ${selSite}"></div>
-        <!-- The card header two lines up already prints "1915Z · 45 min old",
-             so the note carries only what the header cannot: WHY it is old. -->
-        <div class="camNote stale">Pulled before departure — cannot be refreshed in flight.</div>
+        <!-- No note. It used to assert that field-camera images "cannot be
+             refreshed in flight", which is a claim a pilot with a cell
+             connection will simply dispute, and the page has no business
+             defending it. The header already prints "1915Z · 45 min old";
+             the age is a fact and needs no justification attached. -->
         ${cred}
       </div>`;
     /* camHelp emptied. It restated the section heading and then explained what
@@ -2366,7 +2519,6 @@ function drawCams(){
         <div class="camShot ref" data-kind="clear"><canvas></canvas>
           <span class="kind">Clear day</span></div>
       </div>
-      <div class="camNote stale">Pulled before departure — cannot be refreshed in flight.</div>
     </div>`).join("");
 
   for(const card of camGrid.querySelectorAll(".camCard")){
@@ -3052,9 +3204,11 @@ function buildSituation(){
     .map(([ic,lab,val,sub])=>
       `<dl class="sitItem">
          ${svg(ic,"ico")}
-         <dd>${esc(val)}</dd>
-         <dt>${esc(lab)}</dt>
-         ${sub?`<small>${esc(sub)}</small>`:""}
+         <div class="sTxt">
+           <dt>${esc(lab)}</dt>
+           <dd>${esc(val)}</dd>
+           ${sub?`<small>${esc(sub)}</small>`:""}
+         </div>
        </dl>`).join("");
 }
 applyDevice();
