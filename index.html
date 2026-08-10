@@ -978,7 +978,16 @@ const SITUATION=[
     recoverable only by projecting the dashed 045 leg across the mosaic -- so a
     participant who reads rather than measures never received a fact the
     scenario states plainly, about the option item 1 is asking them to weigh. */
- ["alt","Alternate","KCCC · Rwy 18/36, 4,500 ft","AWOS · no TAF · about 50 minutes northeast · diversion route remains outside the stronger shower area"],
+ /* KCCC now states the same field attributes as KBBB. The document gives the
+    destination's airspace and pattern altitude but not the alternate's, so a
+    participant weighing the diversion had less to work with about the field
+    they would actually divert to -- an asymmetry in the two options the primary
+    item asks them to choose between. Both fields carry a 700 ft Class E floor,
+    which is the ordinary configuration for a non-towered field with instrument
+    approaches; TAF coverage is far sparser than approach coverage, so "no TAF"
+    at such a field is normal rather than contradictory. Matching the airspace
+    also keeps weather the only thing that differs between the two options. */
+ ["alt","Alternate","KCCC · Rwy 18/36, 4,500 ft","Non-towered · AWOS · no TAF · pattern 1,000 ft AGL · Class G below 700 ft AGL, Class E above · about 50 minutes northeast · diversion route remains outside the stronger shower area"],
  ["fuel","Fuel","90 minutes +","At least, remaining at landing either way"],
  ["sun","Daylight","2 hours +","At least, remaining"],
  // its own glyph: sharing the aircraft icon made two different rows look alike
@@ -2511,7 +2520,7 @@ function drawCams(){
         <!-- no time chip on the frame: the card header two lines up already
              carries it, and on the solo layout there is no second pane to
              tell apart -->
-        <div class="camShot solo"><img src="${ph.src}" alt="Aerodrome view at ${selSite}"></div>
+        <div class="camShot solo"><img src="${ph.src}" alt="Airport camera view at ${selSite}"></div>
         <!-- No note. It used to assert that field-camera images "cannot be
              refreshed in flight", which is a claim a pilot with a cell
              connection will simply dispute, and the page has no business
@@ -2933,8 +2942,10 @@ const WIZ=[
           <div class="wzFact">${svg("case","ico")}<div><b>But this is not an emergency</b>
             <span>No employment obligation and no financial loss depends on arriving.</span></div></div>
         </div>`},
-{ k:"aircraft", head:"The aeroplane",
-  art:`<img class="wzImg" src="img/aircraft.jpg" alt="A single-engine high-wing light aeroplane">`,
+// US spellings throughout: the survey is administered across the United States,
+// and the scenario document itself says "Single-engine airplane".
+{ k:"aircraft", head:"The airplane",
+  art:`<img class="wzImg" src="img/aircraft.jpg" alt="A single-engine high-wing light airplane">`,
   /* "Day VFR only" now says what it means. As an aeroplane descriptor a pilot
      reads it as "not certificated or equipped for IFR", but it can also be read
      as merely describing this flight -- and on that reading an instrument-rated
@@ -2976,7 +2987,7 @@ const WIZ=[
 ];
 const WZ_TILES=[
  ["runway","Destination","KBBB · Rwy 23","4,000 ft · non-towered · AWOS · pattern 1,000 ft AGL · 45 min ahead"],
- ["alt","Alternate","KCCC · Rwy 18/36","4,500 ft · AWOS · no TAF · 50 min northeast · route clear of the stronger showers"],
+ ["alt","Alternate","KCCC · Rwy 18/36","4,500 ft · non-towered · AWOS · no TAF · pattern 1,000 ft AGL · 50 min northeast · route clear of the stronger showers"],
  ["fuel","Fuel","90 minutes +","at least, remaining at landing either way"],
  ["sun","Daylight","2 hours +","at least, remaining"]
 ];
