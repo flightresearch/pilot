@@ -1139,8 +1139,18 @@ function shieldWave(z){return 3.0*Math.sin(z*.018)+2.0*Math.sin(z*.009+1.7);}
    dz is quartic so the area has a flat top and steep sides, like a cluster of
    cells, rather than a Gaussian smear that never quite ends. */
 const SHIELD_ALONG=22;                       // NM half-extent along the front
+/* ASYMMETRIC across the band's axis. The showers move east at about 20 kt, so
+   the east side is the LEADING edge, and real convection builds a steep
+   reflectivity gradient into the direction of motion while trailing a long
+   ragged tail behind it. A symmetric Gaussian gave the same slope on both
+   sides, which is the single strongest cue that a mosaic was generated rather
+   than observed. The core stays centred on shieldCx, so the authored
+   "10 to 15 NM west of KBBB" is unchanged -- only the shape of the falloff
+   differs. Mirrored in the GLSL copy below; the two must not drift apart. */
+const LEAD=7.5, TRAIL=14.5;                  // NM e-folding, ahead / behind
 function shieldAt(x,z,zulu){
-  const dx=(x-(shieldCx(zulu)+shieldWave(z)))/11;
+  const d=x-(shieldCx(zulu)+shieldWave(z));
+  const dx=d>0 ? d/LEAD : d/TRAIL;
   const dz=(z-APTS.KBBB.z)/SHIELD_ALONG;
   return Math.exp(-dx*dx)*Math.exp(-dz*dz*dz*dz);
 }
@@ -1212,17 +1222,31 @@ function stratAt(x,z,zulu){
 // offsets are from the moving band, so the remnants travel east with it
 const REMNANTS=[{dx:25,dz:14,r:8.5,amp:.60},{dx:39,dz:-7,r:6.5,amp:.46},
                 {dx:52,dz:20,r:7.5,amp:.34}];
+/* Elongated along the motion vector, not circular. Cells embedded in a band
+   are stretched by the shear that carries them, so a field of round blobs
+   reads as generated on sight. Each remnant is 1.85x its radius along the
+   east-west axis and 0.72x across it, and each keeps the same sharp-ahead,
+   ragged-behind asymmetry as the parent band. */
 function remnantAt(x,z,zulu){
   let m=0;
   for(const c of REMNANTS){
     const rx=shieldCx(zulu)+c.dx, rz=APTS.KBBB.z+c.dz;
-    const d=Math.hypot((x-rx)/c.r,(z-rz)/c.r);
+    const ex=x-rx;
+    const ax=(ex>0 ? ex/(c.r*1.45) : ex/(c.r*2.25));
+    const az=(z-rz)/(c.r*0.72);
+    const d=Math.hypot(ax,az);
     m=Math.max(m,c.amp*Math.exp(-d*d));
   }
   return m;
 }
 function dbzAt(x,z,zulu){
-  const s=shieldAt(x,z,zulu), tex=fbm2(x*.19+zulu*.004,z*.19);
+  const s=shieldAt(x,z,zulu);
+  /* Two scales of texture, not one. A single low-frequency field produces
+     smooth contours no radar ever paints; the finer octave breaks the edges
+     into the speckle a real mosaic shows around its 5-15 dBZ margins. */
+  const coarse=fbm2(x*.19+zulu*.004,z*.19);
+  const fine  =fbm2(x*.66-zulu*.007,z*.66+4.3);
+  const tex=0.70*coarse+0.30*fine;
   // "Stronger showers" with "no lightning detected" -- so the palette is
   // capped short of the red/magenta convective end on purpose.
   const peak=38;
@@ -1467,10 +1491,19 @@ function drawMap(C,opts){
   // --- radar mosaic, banded like a NEXRAD product ---
   if(weather && layRadar){
     const rc=Math.max(3*MDPR,s*1.5);
+    /* Opacity ramps with intensity instead of one flat 0.62 for every bin.
+       Light stratiform returns are what cover most of the area, and painting
+       them at the same weight as a 30 dBZ core turned the whole chart into a
+       solid cyan field on a phone -- the basemap, the route and the station
+       plots all competing with the weakest data on the scope. Real mosaics
+       fade the low bins for exactly this reason. The DATA is unchanged; only
+       the ink is. Verified at 320px: the core still reads first. */
     for(let py=0;py<H;py+=rc)for(let px=0;px<W;px+=rc){
       const w=MV.inv(px,py), v=dbzAt(w.x,w.z,zulu);
       const col=dbzColor(v); if(!col) continue;
-      g.globalAlpha=.62; g.fillStyle=col; g.fillRect(px,py,rc+1,rc+1);
+      const t=Math.max(0,Math.min(1,(v-5)/22));      // 5 dBZ -> 0, 27+ -> 1
+      g.globalAlpha=0.30+0.42*t;
+      g.fillStyle=col; g.fillRect(px,py,rc+1,rc+1);
     }
     g.globalAlpha=1;
   }
@@ -1552,8 +1585,16 @@ function drawMap(C,opts){
     // Always. "The cross-section already shows the altitude" was true of a
     // different card three screens away, and it left the route chart on a
     // phone without the one number that makes the deck heights mean anything.
-    g.font=`700 ${S(10)}px ui-monospace,monospace`;g.textAlign="left";g.textBaseline="middle";
-    g.fillStyle="#101a52";haloText(g,CRUISE_TXT,px+S(16),py);
+    // Flips to the other side of the symbol when it would run off the edge:
+    // at 320px the aeroplane sits far enough right that "2,000 ft" was clipped.
+    g.font=`700 ${S(10)}px ui-monospace,monospace`;g.textBaseline="middle";
+    g.fillStyle="#101a52";
+    const altW=g.measureText(CRUISE_TXT).width, altPad=S(6);
+    if(px+S(16)+altW <= W-altPad){
+      g.textAlign="left";  haloText(g,CRUISE_TXT,px+S(16),py);
+    }else{
+      g.textAlign="right"; haloText(g,CRUISE_TXT,Math.max(altPad+altW,px-S(16)),py);
+    }
   }
 
   // --- station plots ---
@@ -1677,8 +1718,11 @@ function drawStation(g,m,X,Y){
      north arrow -- which is what turned "OVC 1,500 ft" into "OVC 1,5c N ft" at
      phone width. So try the authored position first, then a ring of fallbacks,
      and take the first that is clear of every registered obstacle. */
-  const TOP=-S(40), BOT=S(32), gap=R+S(12);
-  const mk=(ax,ay,rt)=>({x0:rt?ax:ax-wide, x1:rt?ax+wide:ax,
+  /* These bounds must be the CARD's bounds, not the text's. They were the
+     text's, so the placement search cleared the type but the card drawn around
+     it still sat on the station symbol it belonged to. */
+  const PADX=S(6), TOP=-S(44), BOT=S(34), gap=R+S(12);
+  const mk=(ax,ay,rt)=>({x0:(rt?ax:ax-wide)-PADX, x1:(rt?ax+wide:ax)+PADX,
                          y0:ay+TOP, y1:ay+BOT, ax, ay, rt});
   const inCanvas=b=>b.x0>=pad&&b.x1<=W-pad&&b.y0>=pad&&b.y1<=H-pad;
 
@@ -1700,8 +1744,8 @@ function drawStation(g,m,X,Y){
   for(const c of cands){
     // slide horizontally back on-canvas before judging it
     let ax=c.ax;
-    if(c.rt) ax=Math.min(Math.max(ax,pad), W-pad-wide);
-    else     ax=Math.max(Math.min(ax,W-pad), pad+wide);
+    if(c.rt) ax=Math.min(Math.max(ax,pad+PADX), W-pad-wide-PADX);
+    else     ax=Math.max(Math.min(ax,W-pad-PADX), pad+wide+PADX);
     const cc=mk(ax,c.ay,c.rt);
     // prefer clear positions; among clear ones, the nearest to the station
     const dist=Math.hypot((cc.x0+cc.x1)/2-cx,(cc.y0+cc.y1)/2-cy);
@@ -1718,10 +1762,27 @@ function drawStation(g,m,X,Y){
     g.beginPath();g.moveTo(cx,cy);g.lineTo(anchorX,anchorY);g.stroke();
   }
 
+  /* A backing card under the block. Per-glyph haloes keep text readable on a
+     quiet basemap, but over a dense mosaic on a 320px screen the block still
+     dissolved into the echo behind it. A card is what every real radar app
+     does with station text, and it costs no information. */
+  {
+    const bx0=(rt?tx:tx-wide)-S(6), bx1=(rt?tx+wide:tx)+S(6);
+    const by0=ty-S(44), by1=ty+S(34);
+    const rr=S(7);
+    g.beginPath();
+    g.moveTo(bx0+rr,by0);
+    g.arcTo(bx1,by0,bx1,by1,rr); g.arcTo(bx1,by1,bx0,by1,rr);
+    g.arcTo(bx0,by1,bx0,by0,rr); g.arcTo(bx0,by0,bx1,by0,rr);
+    g.closePath();
+    g.fillStyle="rgba(255,255,255,.86)"; g.fill();
+    g.strokeStyle="rgba(42,54,68,.28)"; g.lineWidth=Math.max(1,S(1)); g.stroke();
+  }
+
   g.textBaseline="middle";
   for(const r of rows){
     g.textAlign=rt?"left":"right";
-    g.font=r.f; g.fillStyle=r.c; haloText(g,r.t,tx,ty+r.dy);
+    g.font=r.f; g.fillStyle=r.c; g.fillText(r.t,tx,ty+r.dy);
   }
   // category chip, above the identifier
   g.font=`700 ${S(10)}px ui-monospace,monospace`;
@@ -1984,7 +2045,11 @@ void field(vec2 p,out float ceilFt,out float cov){
 float shield(vec2 p){
  float cx=${SHIELD_X0.toFixed(2)}+${SHIELD_SPD.toFixed(1)}*(uMin/60.0)
    +3.0*sin(p.y*0.018)+2.0*sin(p.y*0.009+1.7);
- float d=(p.x-cx)/11.0;
+ /* Same sharp-ahead, ragged-behind asymmetry as shieldAt. This copy had a
+    plain symmetric /11.0 falloff; leaving it that way would put the rendered
+    sky and the plotted mosaic on different weather again. */
+ float dd=p.x-cx;
+ float d=dd>0.0 ? dd/${LEAD.toFixed(1)} : dd/${TRAIL.toFixed(1)};
  float dz=(p.y-${APTS.KBBB.z.toFixed(2)})/${SHIELD_ALONG.toFixed(1)};
  return exp(-d*d)*exp(-dz*dz*dz*dz)*(1.0-uClear);}
 float terrFt(vec2 p){
@@ -3325,7 +3390,17 @@ function layoutCanvases(){
      all three charts agree on how close two fields are allowed to get. */
   const mw=mapC.parentElement.clientWidth;
   if(mw){
-    const grown=fitChart(mapC,mw,{start:mapH,maxVH:0.95,maxPx:620});
+    /* Narrow charts need MORE separation, not less. The station cards are a
+       fixed physical size, so on a 320px screen each one is about half the
+       canvas width; at the old 70px target the two fields sat closer together
+       than a single card is wide, and the placement search had nowhere legal
+       left to put them -- it settled for covering a station symbol. Asking for
+       a wider separation makes the chart taller, which a phone simply scrolls,
+       and buys the room the labels need. Desktop is unchanged. */
+    const narrow=mw<430;
+    const grown=fitChart(mapC,mw,narrow
+      ? {start:mapH,target:118,maxVH:1.45,maxPx:820}
+      : {start:mapH,target:70, maxVH:0.95,maxPx:620});
     mapH=Math.round(mapC.getBoundingClientRect().height);
     if(grown<60) TEL.log("chart_tight",{sep:Math.round(grown)});
   }
