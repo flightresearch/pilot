@@ -808,15 +808,22 @@ const FT_PER_NM=6076.12, ftNM=ft=>ft/FT_PER_NM;
    x is east, z is north; bearing b maps to (sin b, cos b).                */
 /* Cruise altitude is the one figure version B leaves entirely open, so it is an
    assumption -- but it is constrained by the document's opening sentence, "in
-   visual conditions below the cloud layer". At 3,500 ft the cross-section drew
-   the aeroplane inside the deck for 100% of the remaining leg: cloud base runs
-   3,241 ft MSL at the aeroplane down to 2,498 at KBBB. 2,500 ft sits about
-   740 ft beneath the deck here -- legal VFR clearance, roughly 1,600 ft AGL
-   over the stated flat terrain -- and lets the deck descend onto the route
-   toward the destination, which is what a 1,500 ft AGL ceiling at KBBB means.
-   Every label derives from CRUISE_TXT; seven hardcoded "3,500 ft" strings used
-   to be free to drift away from the constant that drew the line. */
-const GS=90, CRUISE_FT=2500;
+   visual conditions below the cloud layer". Cloud base runs about 3,241 ft MSL
+   at the aeroplane down to roughly 2,500 at KBBB, so the deck descends onto the
+   route toward the destination, which is what a 1,500 ft AGL ceiling at KBBB
+   means. Every label derives from CRUISE_TXT; hardcoded altitude strings used
+   to be free to drift away from the constant that actually draws the line. */
+/* 2,000 ft, not 2,500. The scenario document states no cruise altitude, so this
+   figure is authored here -- which means it must not quietly decide the task.
+   At 2,500 the arithmetic was: KBBB elevation 1,040 + the reported 1,500 AGL
+   overcast = a cloud base of 2,540 MSL, leaving FORTY FEET of clearance at the
+   destination. The response items require the participant to "remain within VFR
+   limitations", and VFR wants 500 ft below cloud, so the cross-section was
+   silently asserting that continuing at cruise would be illegal near KBBB --
+   a substantial argument for diverting, produced by a number the author never
+   specified. At 2,000 the clearance is 540 ft: legal, still visibly tightening
+   along the route, and no longer making the decision on the pilot's behalf. */
+const GS=90, CRUISE_FT=2000;
 const CRUISE_TXT=CRUISE_FT.toLocaleString()+" ft";
 const TRK_DEG=70, MIN_KBBB=45, MIN_KCCC=50, ROUTE_LEN=135;
 const d2r=d=>d*Math.PI/180;
@@ -1330,7 +1337,8 @@ function buildBasemap(){
   B.lakes=[[18,-42,7,4.4],[152,96,6,3.6],[-6,88,5,3.2]];
   // towns: bland invented names, placed off the course
   B.cities=[[24,-30,"Marlow"],[10,62,"Ashfield"],[150,-34,"Bexley"],
-            [66,104,"Crandon"],[176,58,"Elmore"],[104,-64,"Norwich"]];
+            // "Norwich" was a real city on a chart of invented aerodromes
+            [66,104,"Crandon"],[176,58,"Elmore"],[104,-64,"Norvale"]];
   return B;
 }
 function drawBasemap(g,X,Y,W,H){
