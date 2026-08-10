@@ -22,6 +22,14 @@ html{
      stretched across a 1440px window.
      375 -> 20 | 768 -> 20.1 | 1024 -> 20.4 | 1440 -> 20.9 | 1920 -> 21.5 */
   font-size:clamp(20px, 19.2px + 0.12vw, 22px);
+  /* 20px is the accessibility floor for a 375px phone and above. At 360px and
+     below -- iPhone SE, and the narrower Androids -- it is the WRONG floor:
+     the same 20px leaves about sixteen characters to a line, so every label
+     wraps, every card swells, and the page reads as though it has been
+     zoomed. A ~10% reduction below 360px recovers roughly two characters a
+     line and costs very little legibility, because CSS pixels are near enough
+     the same physical size on these devices as on a 375px one. Nothing about
+     WHAT is shown changes -- only the type scale, which is what it is for. */
   -webkit-text-size-adjust:100%;
 }
 :root{
@@ -580,7 +588,11 @@ body:has(#gate:not(.off)) main{display:none}
 #noGL.on{display:block}
 
 /* ================= device tailoring ================= */
+@media (max-width:360px){ html{font-size:18px} }
 html[data-dev="phone-sm"]{--pad:.55rem}
+html[data-dev="phone-xs"]{--pad:.45rem}
+/* the xs class inherits every phone-sm rule; it differs only in scale */
+html[data-dev="phone-xs"] .card > h2 .tag{margin-left:auto}
 /* The tag stays on small phones and wraps onto its own line. Hiding it removed
    "Track up · 070°" from the chart and the 2000Z stamps from the window view
    and the cross-section -- on the device the requirements name as primary, and
@@ -1277,7 +1289,8 @@ function applyDevice(){
   const w=innerWidth, h=innerHeight;
   const coarse = matchMedia("(pointer:coarse)").matches;
   const short  = h<560;
-  if      (w<400)  DEV="phone-sm";
+  if      (w<=360) DEV="phone-xs";       // iPhone SE and the narrow Androids
+  else if (w<400)  DEV="phone-sm";
   else if (w<560)  DEV="phone";
   else if (w<820)  DEV=coarse?"tablet":"small";
   else if (w<1180) DEV="tablet";
@@ -1286,11 +1299,17 @@ function applyDevice(){
   document.documentElement.dataset.dev=DEV;
   document.documentElement.dataset.orient=(w>h?"land":"port");
   // matched to the 20-26px UI type so chart labels read at the same size
-  TS = {"phone-sm":1.78,"phone":1.74,"small":1.66,"tablet":1.60,
+  /* phone-xs tracks its 18px root the same way every other class tracks its
+     own: 1.78 x (18/20). Canvas text and HTML text must shrink together or the
+     chart labels end up looking bolted on. */
+  TS = {"phone-xs":1.60,"phone-sm":1.78,"phone":1.74,"small":1.66,"tablet":1.60,
         "desktop":1.50,"desktop-lg":1.44}[DEV];
   return {DEV,TS,short,coarse};
 }
 const S = n => n*TS*MDPR;              // canvas size helper
+// one predicate for "is a phone", so adding a class cannot silently drop a
+// device into the desktop layout branch
+Object.defineProperty(window,"PHONE",{get:()=>DEV==="phone-xs"||DEV==="phone-sm"||DEV==="phone"});
 
 const mapC=document.getElementById("map");
 let MDPR=1, MV=null, selStn=null;
@@ -2602,12 +2621,21 @@ function selectSite(k,fromMap){
        from the count of genuine camera exploration;
      - honours prefers-reduced-motion by not running at all. */
 const DEMO={done:false,running:false,abort:false};
-const HAND=`<svg viewBox="0 0 28 34" aria-hidden="true">
-  <g fill="#ffffff" stroke="#101c26" stroke-width="1.9" stroke-linejoin="round"
+/* A single closed silhouette, not a finger drawn on top of a blob. The first
+   version was two overlapping shapes and read as a mitten: the outline of one
+   crossed the fill of the other, so there was no continuous edge from
+   fingertip to wrist. This traces the whole hand in one path -- up the left
+   side of the index finger, round the tip, down its right side, out over the
+   knuckles, round the base of the fist, and back up the heel -- with two
+   short creases for the folded fingers. */
+const HAND=`<svg viewBox="0 0 32 42" aria-hidden="true">
+  <g fill="#ffffff" stroke="#0d1a26" stroke-width="2" stroke-linejoin="round"
      stroke-linecap="round">
-    <path d="M11 16.5V5.6a2.6 2.6 0 0 1 5.2 0V16.5"/>
-    <path d="M6.6 20.6c0-2 1.4-3.3 3.2-3.3h9.4c2.6 0 4.6 2.1 4.6 4.6v3.3
-             c0 3.5-2.8 6.4-6.4 6.4h-3c-2 0-3.8-.9-5-2.4l-4-5.2a2.3 2.3 0 0 1 3.3-3z"/>
+    <path d="M13.2 24.6V8.4a3.1 3.1 0 0 1 6.2 0v13.1
+             c1.1-.7 2.3-1 3.6-.7l4.1 1.1a3.4 3.4 0 0 1 2.5 3.9l-1.1 6.6
+             a6.4 6.4 0 0 1-6.3 5.3h-6.1a6.6 6.6 0 0 1-5.2-2.5l-5.6-7.1
+             a2.9 2.9 0 0 1 4.3-3.8z"/>
+    <path fill="none" stroke-width="1.7" d="M21.7 27.4v2.9M25.4 28v2.6"/>
   </g></svg>`;
 
 function camDemo(){
@@ -3376,7 +3404,8 @@ function layoutCanvases(){
   // vertically track-up); short landscape screens get a flatter one so the
   // decision stays reachable without a long scroll.
   let mapH, xsH;
-  if(DEV==="phone-sm"||DEV==="phone"){ mapH=Math.min(w*1.02, h*0.62); xsH=Math.min(w*0.62, h*0.40); }
+  // PHONE covers all three phone classes; xs must not fall through to desktop
+  if(PHONE){ mapH=Math.min(w*1.02, h*0.62); xsH=Math.min(w*0.62, h*0.40); }
   else if(DEV==="small"||DEV==="tablet"){ mapH=Math.min(w*0.62, h*0.55); xsH=Math.min(w*0.40, h*0.36); }
   else { mapH=Math.min(560, Math.max(320, h*0.48)); xsH=Math.min(340, Math.max(230, h*0.30)); }
   if(short){ mapH=Math.min(mapH, h*0.72); xsH=Math.min(xsH, h*0.55); }
@@ -3415,7 +3444,7 @@ function layoutCanvases(){
   const otwPhoto = OTW_PHOTO.enroute;
   const otwH = otwPhoto
     ? otwParentW * (otwPhoto.height / otwPhoto.width)
-    : ((DEV==="phone-sm"||DEV==="phone") ? Math.min(w*0.60,h*0.40)
+    : (PHONE ? Math.min(w*0.60,h*0.40)
                                          : Math.min(w*0.34, 380));
   // The window view is ONE photographic image, so it renders at the display's
   // true pixel density. Capping it at 2 on a 3x phone was upscaling it 1.5x,
