@@ -369,6 +369,41 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
    two that worsened. Colouring it as a caution would prime the direction. */
 .trend{font-size:var(--fs-md);color:var(--ink2);font-family:var(--mono);font-weight:700;
   padding:0 .65rem .5rem;line-height:1.35}
+/* ---- one-off camera walkthrough ----------------------------------------
+   A hand taps between the two site tabs once, the first time the camera card
+   comes into view, then removes itself. Its purpose is exposure equality: the
+   alternate's camera is behind a tab, so without a prompt only the
+   participants who happen to explore see it, and whether a pilot digs is
+   plausibly a function of the very risk-perception dimensions this study
+   treats as mediators. Showing everyone the tab exists converts a
+   participant-selected stimulus into a standardized one. */
+#secCam{position:relative}
+.demoHand{position:absolute;width:2.1rem;height:2.6rem;z-index:6;pointer-events:none;
+  filter:drop-shadow(0 3px 6px rgba(0,0,0,.45));opacity:0;
+  transform:translate(-38%,-14%);
+  transition:left .5s cubic-bezier(.4,0,.2,1),top .5s cubic-bezier(.4,0,.2,1),opacity .35s}
+.demoHand.on{opacity:1}
+.demoHand.tap{animation:handTap .42s ease}
+@keyframes handTap{0%{transform:translate(-38%,-14%) scale(1)}
+  45%{transform:translate(-38%,-14%) scale(.82)}
+  100%{transform:translate(-38%,-14%) scale(1)}}
+.demoRing{position:absolute;z-index:5;width:2.6rem;height:2.6rem;border-radius:50%;
+  border:3px solid var(--blue);pointer-events:none;opacity:0;
+  transform:translate(-50%,-50%)}
+.demoRing.go{animation:ringPop .55s ease-out}
+@keyframes ringPop{0%{opacity:.85;transform:translate(-50%,-50%) scale(.35)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.5)}}
+/* Reduced motion suppresses the GLIDE and the ripple, not the demonstration.
+   Skipping it entirely would deny those participants the one thing the
+   walkthrough exists to give everyone -- the knowledge that the alternate has
+   a camera behind that tab -- and would reintroduce exactly the self-selected
+   exposure it was added to remove. The hand still appears, statically. */
+@media (prefers-reduced-motion:reduce){
+  .demoHand{transition:opacity .01s}
+  .demoHand.tap{animation:none}
+  .demoRing{display:none}
+}
+
 .rawRow{padding:.35rem .65rem;border-top:1px dashed var(--line);background:#fafcfd}
 .rawNote{display:block;margin-top:.3rem;font-family:var(--sans);font-size:var(--fs-xs);color:var(--muted)}
 .raw{font-family:var(--mono);font-size:var(--fs-md);line-height:1.55;color:#22323f;
@@ -1779,7 +1814,8 @@ const xsC=document.getElementById("xs");
 function drawXSec(){
   const g=xsC.getContext("2d"),W=xsC.width,H=xsC.height,st=stage();
   g.setTransform(1,0,0,1,0,0);
-  const padL=S(40),padR=S(14),padT=S(12),padB=S(34);
+  // padB carries TWO label rows under the axis now, not one
+  const padL=S(40),padR=S(14),padT=S(12),padB=S(52);
   const pw=W-padL-padR,ph=H-padT-padB,MAX=12000;
   const X=f=>padL+f*pw, Y=ft=>padT+ph*(1-ft/MAX);
   /* The section now runs from the AEROPLANE to KBBB -- the 45 minutes still to
@@ -1873,20 +1909,31 @@ function drawXSec(){
   const yAx=padT+ph;
   g.strokeStyle="rgba(40,60,80,.30)";g.lineWidth=Math.max(1,S(1));
   g.beginPath();g.moveTo(padL,yAx);g.lineTo(padL+pw,yAx);g.stroke();
-  g.textBaseline="top";g.textAlign="center";
+  /* TWO ROWS below the axis: intermediate ticks on the first, the endpoints on
+     the second. All four labels shared one row before, and at 375px "30 min"
+     ran 232px straight through "KBBB 45 min" while the same four had room to
+     spare on a desktop. One row cannot be made to work: "KBBB 45 min" spans
+     405-652px, which swallows the 30-minute tick at 482 whatever the tick is
+     shortened to. Putting the ticks INSIDE the plot instead was worse -- on a
+     phone the 12,000 ft scale squeezes 2,000 ft to within a few pixels of the
+     axis, so they landed on the cruise line. Dropping a tick on small screens
+     would have been the easy fix and the wrong one: the chart carries the same
+     content on every device, so the layout gives way instead. */
+  g.textAlign="center";g.textBaseline="top";
   g.font=`600 ${S(10.5)}px ui-monospace,monospace`;
   for(const mn of [15,30]){
     const f=mn/MIN_KBBB, x=X(f);
     g.strokeStyle="rgba(40,60,80,.30)";
     g.beginPath();g.moveTo(x,yAx);g.lineTo(x,yAx+S(4));g.stroke();
-    g.fillStyle="#5a6874";g.fillText(mn+" min",x,yAx+S(6));
+    g.fillStyle="#5a6874";g.fillText(mn+" min",x,yAx+S(5));
   }
   g.font=`700 ${S(11.5)}px ui-monospace,monospace`;
+  const yEnds=yAx+S(21);                     // second row, clear of the ticks
   // left end is the cockpit now, not a departure field
-  g.textAlign="left";g.fillStyle="#2a3644";g.fillText("YOU",padL,yAx+S(6));
+  g.textAlign="left";g.fillStyle="#2a3644";g.fillText("YOU",padL,yEnds);
   // destination gets a mark on the axis as well as a name
   g.textAlign="right";g.fillStyle="#0f3557";
-  g.fillText("KBBB "+MIN_KBBB+" min",padL+pw,yAx+S(6));
+  g.fillText("KBBB "+MIN_KBBB+" min",padL+pw,yEnds);
   g.strokeStyle="#0f3557";g.lineWidth=Math.max(1,S(2));
   g.beginPath();g.moveTo(padL+pw,yAx-S(5));g.lineTo(padL+pw,yAx+S(4));g.stroke();
   // The caption is HTML beneath the canvas, not canvas text: gated on DETAIL it
@@ -2465,9 +2512,90 @@ function buildSiteTabs(){
 }
 function selectSite(k,fromMap){
   selSite=k; selStn=k;
-  TEL.log("cam_site",{site:k,fromMap:!!fromMap});
+  // demo-driven switches are flagged so they are never counted as the
+  // participant having explored the alternate's camera
+  TEL.log("cam_site",{site:k,fromMap:!!fromMap,demo:DEMO.running||undefined});
   buildSiteTabs(); drawCams(); drawMap();
   if(fromMap) document.getElementById("secCam").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ---- one-off camera walkthrough ---------------------------------------
+   The alternate's camera sits behind a tab. Without a prompt, only the
+   participants who happen to explore ever see it -- and whether a pilot digs
+   is plausibly a function of the very risk-perception dimensions this study
+   treats as mediators, which would put stimulus exposure on the causal path.
+   A single silent demonstration shows every participant that the tab exists,
+   which turns a participant-selected stimulus into a standardized one.
+
+   Constraints it must respect, because this is a measuring instrument:
+     - runs ONCE per session, the first time the card is actually on screen;
+     - aborts the instant the participant touches anything, so it can never
+       fight them for control;
+     - always ends on KBBB, the state it started from, so no participant is
+       left looking at a different frame than any other;
+     - its own switches are tagged demo:true in telemetry and are excluded
+       from the count of genuine camera exploration;
+     - honours prefers-reduced-motion by not running at all. */
+const DEMO={done:false,running:false,abort:false};
+const HAND=`<svg viewBox="0 0 28 34" aria-hidden="true">
+  <g fill="#ffffff" stroke="#101c26" stroke-width="1.9" stroke-linejoin="round"
+     stroke-linecap="round">
+    <path d="M11 16.5V5.6a2.6 2.6 0 0 1 5.2 0V16.5"/>
+    <path d="M6.6 20.6c0-2 1.4-3.3 3.2-3.3h9.4c2.6 0 4.6 2.1 4.6 4.6v3.3
+             c0 3.5-2.8 6.4-6.4 6.4h-3c-2 0-3.8-.9-5-2.4l-4-5.2a2.3 2.3 0 0 1 3.3-3z"/>
+  </g></svg>`;
+
+function camDemo(){
+  if(DEMO.done) return;
+  const anim=!matchMedia("(prefers-reduced-motion:reduce)").matches;
+  const host=document.getElementById("secCam");
+  const tabs=[...host.querySelectorAll(".siteTab")];
+  if(tabs.length<2) return;
+  DEMO.done=true; DEMO.running=true; DEMO.abort=false;
+  TEL.log("cam_demo_start");
+
+  const hand=document.createElement("div"); hand.className="demoHand";
+  hand.innerHTML=HAND; host.appendChild(hand);
+  const ring=document.createElement("div"); ring.className="demoRing"; host.appendChild(ring);
+
+  const stop=()=>{ DEMO.abort=true; };
+  ["pointerdown","keydown","wheel","touchstart"].forEach(e=>
+    addEventListener(e,stop,{once:true,passive:true}));
+
+  const at=el=>{ const h=host.getBoundingClientRect(), r=el.getBoundingClientRect();
+    return {x:r.left-h.left+r.width*0.5, y:r.top-h.top+r.height*0.62}; };
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const cleanup=()=>{ hand.classList.remove("on");
+    setTimeout(()=>{hand.remove();ring.remove();},420);
+    DEMO.running=false;
+    if(selSite!=="KBBB"){ DEMO.running=true; selectSite("KBBB",false); DEMO.running=false; }
+    TEL.log("cam_demo_end",{aborted:DEMO.abort});
+  };
+
+  (async()=>{
+    const tabOf=k=>host.querySelector(`.siteTab[data-site="${k}"]`);
+    const GLIDE=anim?560:120, HOLD=anim?1150:900;
+    let p=at(tabOf("KBBB"));
+    hand.style.left=p.x+"px"; hand.style.top=p.y+"px";
+    await wait(60); hand.classList.add("on");
+    await wait(anim?520:260);
+    // two taps: over to the alternate, then back to the destination
+    for(const k of ["KCCC","KBBB"]){
+      if(DEMO.abort) break;
+      const t=tabOf(k); if(!t) break;
+      p=at(t); hand.style.left=p.x+"px"; hand.style.top=p.y+"px";
+      await wait(GLIDE); if(DEMO.abort) break;
+      if(anim){
+        ring.style.left=p.x+"px"; ring.style.top=(p.y-6)+"px";
+        ring.classList.remove("go"); void ring.offsetWidth; ring.classList.add("go");
+        hand.classList.remove("tap"); void hand.offsetWidth; hand.classList.add("tap");
+        await wait(190); if(DEMO.abort) break;
+      }
+      DEMO.running=true; selectSite(k,false); DEMO.running=false;
+      await wait(HOLD);
+    }
+    cleanup();
+  })();
 }
 
 /* ---- aerodrome camera imagery -----------------------------------------
@@ -3028,7 +3156,9 @@ function renderWiz(){
   document.getElementById("wzNext").onclick=()=>{
     TEL.log("wizard_next",{panel:WIZ[wizIdx].k});
     if(wizIdx<WIZ.length-1){ wizIdx++; renderWiz(); toTop(); }
-    else { gate.classList.add("off"); enterStage(); toTop(); }   // straight to the briefing
+    else { gate.classList.add("off"); enterStage(); toTop();     // straight to the briefing
+           // re-evaluate the walkthrough now the card is no longer covered
+           if(window.__camDemoCheck) setTimeout(window.__camDemoCheck,600); }
   };
   TEL.log("wizard_view",{panel:w.k,idx:wizIdx});
 }
@@ -3239,6 +3369,41 @@ if(window.ResizeObserver){
   ro.observe(document.getElementById("secMap"));
   ro.observe(document.getElementById("secCam"));
 }
+/* Fire the camera walkthrough the first time the card is genuinely on screen
+   AND the intro is closed. Both conditions matter: the sections sit in the DOM
+   behind the wizard, so visibility alone would run the demo while the
+   participant is still reading panel 1 and they would never see it.
+
+   An IntersectionObserver alone is not enough either. The card can already be
+   intersecting above the threshold while the wizard covers it, and if the
+   ratio never crosses a threshold again after the wizard closes the callback
+   simply never fires -- which is exactly what happened in testing. So the same
+   predicate is also evaluated on scroll and shortly after the gate closes. */
+(function(){
+  const cam=document.getElementById("secCam");
+  let armed=true;
+  function visibleEnough(){
+    const r=cam.getBoundingClientRect(), vh=innerHeight||0;
+    if(r.height<=0) return false;
+    const shown=Math.min(r.bottom,vh)-Math.max(r.top,0);
+    return shown/Math.min(r.height,vh) >= 0.45;
+  }
+  function check(){
+    if(!armed || DEMO.done) return;
+    if(!gate.classList.contains("off")) return;
+    if(!visibleEnough()) return;
+    armed=false;
+    removeEventListener("scroll",onScroll);
+    setTimeout(camDemo,450);                  // let the scroll settle first
+  }
+  let sT=null;
+  function onScroll(){ clearTimeout(sT); sT=setTimeout(check,120); }
+  addEventListener("scroll",onScroll,{passive:true});
+  if(window.IntersectionObserver){
+    new IntersectionObserver(check,{threshold:[0,0.45,0.8]}).observe(cam);
+  }
+  window.__camDemoCheck=check;                // also polled after the gate closes
+})();
 
 /* ==================================================================== *
  * 13.  BOOT
