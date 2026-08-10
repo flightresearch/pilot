@@ -58,6 +58,9 @@ h1,h2,h3,h4{margin:0;font-weight:700;letter-spacing:-.01em}
   display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.45rem .6rem;
   box-shadow:0 2px 10px rgba(0,0,0,.22)}
 #hdr .t{font-size:var(--fs-md);font-weight:700;line-height:1.15}
+/* <small> is inline by default and the markup has no space before it, so the
+   title rendered as "VFR Weather DecisionJudgment scenario" in the banner. */
+#hdr .t small{display:block;font-size:var(--fs-sm);font-weight:400;opacity:.85}
 #hdr .sp{flex:1}
 /* One status line, present at both stages, scenario-dependent content —
    realism without making the layout itself a T1/T2 difference. */
@@ -616,7 +619,9 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
 <body>
 
 <header id="hdr">
+  <!-- the <small> must break to its own line; inline it read "DecisionJudgment" -->
   <div class="t">VFR Weather Decision<small>Judgment scenario</small></div>
+
   <div class="sp"></div>
   <!-- No stage pills: there is one measurement, so there is nothing to step through -->
   <div id="steps"><span class="step on">En route &middot; 2000Z</span></div>
@@ -1881,7 +1886,13 @@ const cv=document.getElementById("gl");
 let gl=null,GLOK=false;
 try{gl=cv.getContext("webgl2",{antialias:true,alpha:false,preserveDrawingBuffer:true});}catch(e){}
 GLOK=!!gl;
-if(!GLOK) document.getElementById("noGL").classList.add("on");
+/* The "camera imagery cannot be displayed" banner is NOT decided here. It used
+   to be set at init from GLOK alone and never cleared, but the photo branch of
+   drawCams() runs before any GLOK check and serves plain <img> files that need
+   no WebGL. On a device with WebGL2 blocked the banner therefore sat directly
+   above a visible aerodrome photograph, telling the participant the panel they
+   were looking at could not be shown. drawCams() decides it, where the answer
+   is actually known. */
 
 const NOISE=`
 float h21(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -2473,6 +2484,9 @@ function drawCams(){
   const st=stage();
   const stale=true;                 // always: the scenario opens airborne
   const ph = CAM_PHOTO[selSite];
+  // only when there is genuinely nothing to show for this site
+  const ng=document.getElementById("noGL");
+  if(ng) ng.classList.toggle("on", !GLOK && !ph);
   const cred = (ph && ph.note) ? `<div class="camCred">${ph.note}</div>` : "";
 
   /* A photograph, where one exists, replaces the rendered pair outright.
@@ -3218,9 +3232,19 @@ probeCamPhotos(()=>{ if(document.getElementById("camGrid")) drawCams(); });
 probeOtwPhotos(()=>drawOTW());
 if(GLOK){ buildGL(); buildLandmarks(); }
 enterStage();
-/* A run that already completed does not start over. Re-entering after finishing
-   used to boot fresh and overwrite the finished row with a partial one. */
-if(priorStage==="complete"){
+/* A run that already recorded ANYTHING does not start over.
+   This tested `priorStage==="complete"` and that was too narrow. exportResult
+   persists the stage the instant items 1 and 2 are submitted, and that stage is
+   "committed" -- "complete" is written only by finish(). So for the whole
+   follow-up page the test failed, control fell through to showGate(), and the
+   wizard reopened at panel 1. The participant re-read the briefing and answered
+   the primary DV a second time, anchored on the number they had just given, and
+   because the embedded-data keys are fixed names the second answer overwrote the
+   first in Qualtrics. Verified on the running page: 88, reload, 12, Submit live.
+   Testing for any recorded stage costs a reloading participant items 3 and 4 --
+   which DV_stage="committed" already marks as a known missingness pattern -- and
+   that is strictly better than silently replacing the measurement itself. */
+if(priorStage){
   gateCard.className="gatecard";
   gateCard.innerHTML=`<h2>Your response is already recorded</h2>
     <div class="lead">Thank you — this scenario has been completed on this device.</div>
