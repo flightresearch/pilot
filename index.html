@@ -16,12 +16,19 @@
  *   - canvas text scales in parallel via TS (see applyDevice)
  * ------------------------------------------------------------------ */
 html{
-  /* 20px on a phone, the stated accessibility floor, and only a little above
-     it on a large screen. The old ramp (18px + 0.55vw capped at 26px) put
-     desktop body text at ~26px, which reads as inflated -- phone-sized type
-     stretched across a 1440px window.
-     375 -> 20 | 768 -> 20.1 | 1024 -> 20.4 | 1440 -> 20.9 | 1920 -> 21.5 */
-  font-size:clamp(20px, 19.2px + 0.12vw, 22px);
+  /* The ramp used to GROW with viewport width, which is backwards. A phone is
+     held at roughly 35cm and a desktop monitor sits at roughly 60cm, so for the
+     same apparent size the desktop needs type that is larger in ANGLE, not in
+     CSS pixels -- and CSS pixels do not scale with distance. Growing the size
+     with width therefore compounded the error: 20.9px of body text across a
+     1440px window reads as large-print, which is what "inflated" meant.
+     It now steps DOWN as the screen grows, which is both the convention and
+     the correct reading of the accessibility target: the 20px floor was set
+     for a phone held close, not for a monitor at arm's length.
+        <=360 (iPhone SE)  18px
+        361-767 (phones)   19px
+        >=768 (tablet/desktop) 17px  */
+  font-size:19px;
   /* 20px is the accessibility floor for a 375px phone and above. At 360px and
      below -- iPhone SE, and the narrower Androids -- it is the WRONG floor:
      the same 20px leaves about sixteen characters to a line, so every label
@@ -350,28 +357,41 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
    the largest type on the page after the decision itself. Every size here is
    a rem token: the old hardcoded 10.5/11/13/13.5px values ignored the root
    scale entirely, so they stayed tiny while everything around them grew. */
-.obsCard{border:2px solid var(--line);border-radius:10px;margin-bottom:.6rem;overflow:hidden}
+/* ---- briefing: strips, not cards -------------------------------------
+   The boxed treatment -- 2px border, 10px radius, a filled header bar and a
+   grid of extra-large values -- is what made this section read as generated
+   rather than designed. Every element was shouting at the same volume. Rules
+   carry the structure now, the station identifier is the only large thing on
+   the row, and values sit inline beside small labels the way they do on a
+   printed briefing. */
+.obsRow{border-top:1px solid var(--line);padding:.5rem 0}
+.obsRow:first-of-type{border-top:none}
+.obsRow.dest{box-shadow:inset 3px 0 0 var(--navy);padding-left:.6rem}
 /* Destination identity is carried by the word DESTINATION, not by a hue. The
    card border, the tag, the chart ring and the cross-section label were all
    purple, and the legend teaches magenta-purple as LIFR -- the worst category.
    KBBB is MVFR at BOTH stages, so the colour asserted something the data does
    not. The category palette already owns green, blue, red and magenta, leaving
    no spare hue, so destination stops being colour-coded at all. */
-.obsCard.dest{border-color:var(--navy)}
-.obsHead{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;padding:.55rem .65rem;
-  background:#f2f5f8;border-bottom:1px solid var(--line)}
-.obsHead b{font-family:var(--mono);font-size:var(--fs-xl)}
+/* .obsRow.dest above carries destination identity now */
+.obsHead{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;padding:0 0 .25rem}
+.obsHead b{font-family:var(--mono);font-size:var(--fs-lg);letter-spacing:.02em}
 .obsHead .sp{flex:1}
+/* category as a small pip beside the identifier rather than a separate legend
+   lookup; the word is present, so hue is never the sole carrier */
+.catPip{font-family:var(--mono);font-size:var(--fs-xs);font-weight:700;color:#fff;
+  padding:.08em .4em;border-radius:3px;letter-spacing:.03em}
 .destTag{font-size:var(--fs-xs);font-weight:700;letter-spacing:.04em;color:var(--navy)}
 .catBadge{font-family:var(--mono);font-size:var(--fs-xs);font-weight:700;color:#fff;
   padding:.12em .55em;border-radius:5px}
 /* Wider columns: at this type size a 7.5rem track wrapped "220° 12G18" */
-.obsMain{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));
-  gap:.55rem .9rem;padding:.65rem}
-.obsMain .m dt{font-size:var(--fs-sm);color:var(--muted);font-weight:700}
-.obsMain .m dd{margin:0;font-size:var(--fs-xl);font-family:var(--mono);font-weight:700;
-  line-height:1.2}
-.obsMain .m dd.words{font-family:var(--sans);font-size:var(--fs-lg)}
+/* inline label/value pairs that wrap; replaces the old auto-fit grid of blocks */
+.obsMain{display:flex;flex-wrap:wrap;gap:.15rem 1.15rem;align-items:baseline}
+.obsMain .m{display:inline-flex;align-items:baseline;gap:.35rem;white-space:nowrap}
+.obsMain .m i{font-style:normal;font-size:var(--fs-xs);color:var(--muted);font-weight:700}
+.obsMain .m b{font-family:var(--mono);font-size:var(--fs-md);font-weight:700;color:var(--ink)}
+.obsMain .m b.words{font-family:var(--sans);white-space:normal}
+/* the old block-grid rules are gone; .obsMain above replaces them entirely */
 /* Neutral, not amber. Amber is this page's hazard colour, and the trend line
    only ever appears on stations that changed -- which at T2 are exactly the
    two that worsened. Colouring it as a caution would prime the direction. */
@@ -416,22 +436,26 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 .rawNote{display:block;margin-top:.3rem;font-family:var(--sans);font-size:var(--fs-xs);color:var(--muted)}
 .raw{font-family:var(--mono);font-size:var(--fs-md);line-height:1.55;color:#22323f;
   white-space:pre-wrap;word-break:break-word;margin:.35rem 0 .2rem}
-.disc{border:0;background:none;color:var(--blue);font-size:var(--fs-md);cursor:pointer;
-  padding:.4rem 0;min-height:var(--tap);font-weight:700;text-decoration:underline}
-.advCard{border:2px solid var(--line);border-left:7px solid var(--amber);border-radius:9px;
-  padding:.65rem .75rem;margin-bottom:.5rem;background:#fffdf6}
-.advCard.fresh{border-left-color:var(--ifr);background:#fff6f6}
-.advCard h4{margin:0 0 .25rem;font-size:var(--fs-lg)}
-.advCard .txt{font-size:var(--fs-lg);line-height:1.45}
-.advCard .when{font-family:var(--mono);font-size:var(--fs-sm);color:var(--muted);margin-top:.3rem}
+/* Secondary disclosure, sitting on the station header line. It carried a full
+   56px tap target in its own row, which cost 71px per station -- 213px across
+   the three observations, for a control most participants never open. Inline
+   with a comfortable but not enormous target instead. */
+.disc{border:0;background:none;color:var(--blue);font-size:var(--fs-xs);cursor:pointer;
+  padding:.2rem .45rem;min-height:1.75rem;font-weight:700;font-family:var(--mono);
+  border:1px solid var(--line2);border-radius:5px;-webkit-tap-highlight-color:transparent}
+.disc:hover{border-color:var(--blue)}
+.disc:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+/* advisories: a labelled paragraph under a rule, not a bordered callout. The
+   amber left bar read as a warning the scenario does not issue. */
+.advRow{border-top:1px solid var(--line);padding:.6rem 0}
+.advRow:first-of-type{border-top:none}
+.advRow h4{margin:0 0 .15rem;font-size:var(--fs-xs);color:var(--muted);
+  font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.advRow .txt{font-size:var(--fs-md);line-height:1.45;color:var(--ink)}
+.advRow .when{font-family:var(--mono);font-size:var(--fs-xs);color:var(--muted)}
+/* old advisory callout rules removed; .advRow above replaces them */
 /* TAF periods as stacked rows -- a table would force sideways scrolling */
-.tafRow{border:1px solid var(--line);border-radius:8px;padding:.55rem .65rem;margin-bottom:.5rem;
-  background:#fbfcfd}
-.tafRow .per{font-family:var(--mono);font-size:var(--fs-md);font-weight:700;color:var(--navy)}
-.tafRow .vals{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));
-  gap:.3rem .7rem;margin-top:.35rem}
-.tafRow .vals span{font-size:var(--fs-md);color:var(--muted)}
-.tafRow .vals b{font-family:var(--mono);font-weight:700;font-size:var(--fs-lg);color:var(--ink)}
+.tafPer{font-size:var(--fs-xs);color:var(--muted);font-weight:700;margin:.15rem 0 .1rem}
 
 /* ---------------- decision ---------------- */
 #secDecide{border:3px solid var(--navy)}
@@ -529,7 +553,7 @@ textarea#trig,textarea#why{width:100%;min-height:5.5rem;resize:vertical;backgrou
 .stepLbl .opt{font-style:normal;font-weight:600;font-size:var(--fs-sm);
   color:var(--muted);margin-left:.4rem}
 .noTaf{font-size:var(--fs-lg);color:var(--ink2);line-height:1.4}
-.obsCard.prior{opacity:.88}
+.obsRow.prior{opacity:.82}
 /* the justification page reuses the decision card's textarea and status line */
 .gatecard textarea#why{font-size:var(--fs-lg);min-height:9rem}
 .gatecard .btn:disabled{background:#b7c2cc;color:#5d6b76;cursor:not-allowed}
@@ -552,6 +576,17 @@ textarea#trig,textarea#why{width:100%;min-height:5.5rem;resize:vertical;backgrou
 #gate.off{display:none}
 body:has(#gate:not(.off)) #hdr,
 body:has(#gate:not(.off)) main{display:none}
+/* Same treatment for the survey overlay, and for the same reason. #svy was
+   only a fixed, high z-index layer: it covered the scenario visually but left
+   it in the document, so twenty focusable controls -- including the DV slider
+   and the four action radios -- sat ahead of every survey page in tab order,
+   on every one of ten pages. A keyboard user tabbing backwards could land on
+   the committed dependent variable and change it. display:none removes them
+   from the tab order and the accessibility tree together; the survey never
+   returns to the scenario, so nothing is lost by hiding it. */
+body:has(#svy:not(.off)) #hdr,
+body:has(#svy:not(.off)) #glHost,
+body:has(#svy:not(.off)) main{display:none}
 /* margin:auto centres the card when it fits and lets it start at the top when
    it does not — align-items:center would crop the head off a tall card. */
 .gatecard{max-width:46rem;width:100%;margin:auto;background:#fff;border-radius:14px;
@@ -589,6 +624,7 @@ body:has(#gate:not(.off)) main{display:none}
 
 /* ================= device tailoring ================= */
 @media (max-width:360px){ html{font-size:18px} }
+@media (min-width:768px){ html{font-size:17px} }
 html[data-dev="phone-sm"]{--pad:.55rem}
 html[data-dev="phone-xs"]{--pad:.45rem}
 /* the xs class inherits every phone-sm rule; it differs only in scale */
@@ -658,6 +694,100 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
   letter-spacing:.3em;border:2px solid var(--line2);border-radius:10px;padding:.4rem}
 .lockbox .btn{width:100%;min-height:var(--tap);margin-top:.8rem;background:var(--navy);
   color:#fff;border:0;border-radius:12px;font-size:var(--fs-lg);font-weight:700;cursor:pointer}
+/* ==================================================================== *
+ *  SURVEY (parts 2-4): risk perception, emotional intelligence, background
+ *
+ *  Deliberately quieter than the scenario. The scenario has to look like an
+ *  instrument panel; a questionnaire has to look like a page you can read for
+ *  ten minutes without fatigue. One column, one measure, generous leading, and
+ *  no cards -- rules between items carry the structure instead, which is how a
+ *  printed questionnaire does it and why printed questionnaires are still
+ *  easier to read than most web ones.
+ * ==================================================================== */
+#svy{position:fixed;inset:0;z-index:9000;background:var(--bg);overflow-y:auto;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#svy.off{display:none}
+#svyInner{max-width:44rem;margin:0 auto;padding:0 var(--pad) 5rem;
+  padding-bottom:calc(5rem + env(safe-area-inset-bottom))}
+
+/* progress: a hairline, not a badge. It answers "how much is left" without
+   competing with the items for attention. */
+.pgWrap{position:sticky;top:0;z-index:2;background:var(--bg);
+  padding-top:calc(.5rem + env(safe-area-inset-top))}
+.pgBar{height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.pgFill{height:100%;background:var(--blue);border-radius:2px;
+  transition:width .35s cubic-bezier(.4,0,.2,1)}
+.pgTxt{display:flex;justify-content:space-between;align-items:baseline;
+  font-size:var(--fs-xs);color:var(--muted);font-weight:600;padding:.4rem 0 .8rem}
+
+.svyH{font-size:var(--fs-xl);font-weight:700;color:var(--navy);
+  line-height:1.2;margin:.6rem 0 .2rem;letter-spacing:-.01em}
+.svySub{font-size:var(--fs-sm);color:var(--muted);margin:0 0 1.2rem}
+
+/* Rule BETWEEN items, not above the first. :first-of-type does not work here:
+   the progress block is also a div, so .qItem is never the first div child of
+   its parent and the rule silently never matched. */
+.qItem{padding:1.15rem 0}
+.qItem + .qItem{border-top:1px solid var(--line)}
+.qItem.miss{background:linear-gradient(90deg,rgba(191,84,32,.07),transparent 60%);
+  box-shadow:inset 3px 0 0 #bf5420}
+.qText{font-size:var(--fs-lg);line-height:1.45;color:var(--ink);
+  margin:0 0 .8rem;font-weight:500}
+.qNum{font-family:var(--mono);font-size:var(--fs-xs);color:var(--muted);
+  font-weight:700;margin-right:.45rem}
+.qPend{color:#bf5420;font-style:italic;font-weight:600}
+
+/* The scale. One row of equal cells, whatever the width -- the classic
+   7-across grid collapses badly under 380px, and stacking seven options
+   vertically turns one item into a screenful. Cells stay 44px tall so the
+   touch target survives even when each is only 36px wide. */
+.qScale{display:flex;gap:.3rem}
+.qOpt{flex:1 1 0;min-width:0;min-height:2.75rem;display:flex;align-items:center;
+  justify-content:center;border:2px solid var(--line2);border-radius:9px;
+  background:#fff;color:var(--ink2);font-weight:700;font-size:var(--fs-md);
+  cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
+  transition:background .12s,border-color .12s,color .12s,transform .08s}
+.qOpt:hover{border-color:var(--blue)}
+.qOpt:active{transform:scale(.96)}
+.qOpt.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.qOpt:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.qAnch{display:flex;justify-content:space-between;gap:.6rem;margin-top:.45rem;
+  font-size:var(--fs-xs);color:var(--muted);font-weight:600}
+.qAnch span:last-child{text-align:right}
+
+/* background fields */
+.dRow{padding:1rem 0}
+.dRow + .dRow{border-top:1px solid var(--line)}
+.dLbl{display:block;font-size:var(--fs-md);font-weight:600;color:var(--ink);
+  margin-bottom:.5rem}
+.dIn{width:100%;max-width:11rem;min-height:var(--tap);padding:.5rem .7rem;
+  font-size:var(--fs-lg);font-family:var(--mono);border:2px solid var(--line2);
+  border-radius:10px;background:#fff;color:var(--ink)}
+.dIn.bad{border-color:#bf5420;background:#fdf3ee}
+.dOpts{display:flex;flex-wrap:wrap;gap:.4rem}
+.dOpt{min-height:var(--tap);padding:.5rem .9rem;border:2px solid var(--line2);
+  border-radius:10px;background:#fff;color:var(--ink2);font-size:var(--fs-md);
+  font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.dOpt.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.dOpt:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+
+/* nav sits in the flow, not fixed: a fixed bar costs a phone 15% of its
+   viewport on every page of a long questionnaire */
+.svyNav{display:flex;gap:.6rem;margin-top:1.8rem;padding-top:1.2rem;
+  border-top:1px solid var(--line)}
+.svyNav .btn{flex:1;min-height:3.3rem}
+.svyNav .btn.ghost{flex:0 0 30%;background:#fff;color:var(--navy);
+  border:2px solid var(--line2)}
+.svyNav .btn[disabled]{opacity:.45;cursor:default}
+#svyMsg{min-height:1.4rem;margin-top:.7rem;font-size:var(--fs-sm);
+  font-weight:600;color:#bf5420}
+
+@media (min-width:640px){
+  #svyInner{padding-left:1.5rem;padding-right:1.5rem}
+  .qItem{padding:1.35rem 0}
+  .qScale{gap:.45rem}
+  .qOpt{min-height:3rem}
+}
 #lockMsg{min-height:1.5rem;margin-top:.5rem;font-size:var(--fs-md);font-weight:600;
   color:var(--ifr);text-align:center}
 @media (max-height:520px) and (orientation:landscape){ #hdr{position:static} }
@@ -809,18 +939,28 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
        developer file and is not served to participants. -->
 </main>
 
+<!-- Parts 2 to 4: the scales and background. Item text is not in this file --
+     it is decrypted at run time from the sealed payload (see the access code
+     screen below), so the repository never carries the licensed wording. -->
+<div id="svy" class="off"><div id="svyInner"></div></div>
+
 <div id="glHost"><canvas id="gl" width="480" height="270"></canvas></div>
-<!-- Access code screen. NOT SECURITY: this page is served statically, so the
-     code below is readable by anyone who views source. It keeps casual visitors
-     out of a live instrument while it is being piloted; it does not protect
-     anything. Do not rely on it to keep the scenario confidential. -->
+<!-- Access code screen.
+     Unlike the previous build, the code is NOT compared against a constant in
+     this file. There is no constant. The code is the input to a PBKDF2 key
+     derivation, and the survey's item text is AES-GCM ciphertext embedded
+     below; a wrong code fails the authentication tag and decryption throws.
+     That matters for more than tidiness: the TEIQue-SF is licensed and its
+     items may not be published, and a public GitHub Pages repository publishes
+     whatever it contains. Ciphertext is the only form in which those items can
+     defensibly live in this repository. -->
 <div id="lock">
   <div class="lockbox">
     <h2>Access code</h2>
-    <p>This study page is not yet open. Please enter the code you were given.</p>
+    <p>Please enter the code you were given.</p>
     <label class="lockLbl" for="lockCode">Code</label>
     <input id="lockCode" type="password" inputmode="numeric" autocomplete="off"
-           aria-describedby="lockMsg">
+           aria-describedby="lockMsg" enterkeyhint="go">
     <button class="btn" id="lockGo">Enter</button>
     <div id="lockMsg" role="status"></div>
   </div>
@@ -1299,11 +1439,13 @@ function applyDevice(){
   document.documentElement.dataset.dev=DEV;
   document.documentElement.dataset.orient=(w>h?"land":"port");
   // matched to the 20-26px UI type so chart labels read at the same size
-  /* phone-xs tracks its 18px root the same way every other class tracks its
-     own: 1.78 x (18/20). Canvas text and HTML text must shrink together or the
-     chart labels end up looking bolted on. */
-  TS = {"phone-xs":1.60,"phone-sm":1.78,"phone":1.74,"small":1.66,"tablet":1.60,
-        "desktop":1.50,"desktop-lg":1.44}[DEV];
+  /* Each class tracks its own root size. Canvas text cannot inherit rem, so
+     when the root steps down at 768px the chart labels must step down with it
+     or they end up looking bolted on -- oversized captions on a page whose
+     body text has shrunk. Recomputed against the new ramp (18 / 19 / 17px):
+     the desktop classes drop hardest because they fell the furthest. */
+  TS = {"phone-xs":1.60,"phone-sm":1.69,"phone":1.66,"small":1.38,"tablet":1.35,
+        "desktop":1.25,"desktop-lg":1.20}[DEV];
   return {DEV,TS,short,coarse};
 }
 const S = n => n*TS*MDPR;              // canvas size helper
@@ -2871,20 +3013,27 @@ const svg=(k,cls)=>`<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">$
 function obsCard(m){
   const p=m.plot, cat=flightCat(p.ceil,p.vis), col=CATC[cat];
   const id="raw_"+m.stn+"_"+m.zulu;
-  return `<div class="obsCard ${m.dest?"dest":""} ${m.prior?"prior":""}">
+  /* Laid out as a briefing strip, not a card. Five stacked label/value blocks
+     at extra-large mono ran to roughly 180px of height per station and pushed
+     the third report below the fold; the same five facts fit on one or two
+     wrapped lines when the label is small and the value sits beside it. A real
+     briefing is dense, and density here also means the participant can compare
+     the two fields without scrolling between them. */
+  return `<div class="obsRow ${m.dest?"dest":""} ${m.prior?"prior":""}">
     <div class="obsHead"><b>${m.stn}</b>
+      <span class="catPip" style="background:${col}">${cat}</span>
       ${m.dest?'<span class="destTag">DESTINATION</span>':""}
       <span class="sp"></span>
-      <span class="ageChip">${m.zulu}Z${m.prior?" · earlier report":""}</span></div>
+      <span class="ageChip">${m.zulu}Z${m.prior?" · earlier":""}</span>
+      <button class="disc" data-raw="${id}">coded ▾</button></div>
     <div class="obsMain">
       <!-- AGL stated explicitly: the document gives every ceiling as AGL and the
-           forecast card already says so. Two cards using different conventions
+           forecast row already says so. Two rows using different conventions
            for the same quantity is exactly the ambiguity a pilot would catch. -->
-      <div class="m"><dt>Ceiling</dt><dd>${p.ceil>=12000?"none":p.ceil.toLocaleString()+" ft AGL"}</dd></div>
-      <div class="m"><dt>Visibility</dt><dd>${p.vis} SM</dd></div>
-      <div class="m"><dt>Wind</dt><dd>${p.wdir}° ${p.wspd}${p.gst?"G"+p.gst:""}</dd></div>
-      <div class="m"><dt>Weather</dt><dd class="words">${m.wx}</dd></div>
-      <div class="m"><dt>Clouds</dt><dd>${p.cover}</dd></div>
+      <span class="m"><i>Ceiling</i><b>${p.ceil>=12000?"none":p.cover+" "+p.ceil.toLocaleString()+" ft AGL"}</b></span>
+      <span class="m"><i>Vis</i><b>${p.vis} SM</b></span>
+      <span class="m"><i>Wind</i><b>${p.wdir}° ${p.wspd}${p.gst?"G"+p.gst:""} kt</b></span>
+      <span class="m"><i>Wx</i><b class="words">${m.wx}</b></span>
     </div>
     <!-- Labelled an extract, not a METAR. The scenario document specifies wind,
          visibility, present weather and sky condition; temperature, dew point
@@ -2893,9 +3042,8 @@ function obsCard(m){
          fog, a falling altimeter implies deterioration). But a coded report
          missing its mandatory groups reads as malformed to any pilot who opens
          it, so the label states what it is instead. -->
-    <div class="rawRow"><button class="disc" data-raw="${id}">Show coded report ▾</button>
-      <pre class="raw" id="${id}" style="display:none">${esc(m.raw)}
-<span class="rawNote">Wind, visibility, present weather and sky condition only.</span></pre></div>
+    <pre class="raw" id="${id}" style="display:none">${esc(m.raw)}
+<span class="rawNote">Wind, visibility, present weather and sky condition only.</span></pre>
   </div>`;
 }
 function renderBrief(){
@@ -2910,20 +3058,20 @@ function renderBrief(){
        the station name and the chip already say, and the same fact is on the
        alternate's tile in the intro. The absence is still shown -- it is a
        fact a diverting pilot weighs -- just not spelled out three ways. */
-    ? `<div class="obsCard">
+    ? `<div class="obsRow">
          <div class="obsHead"><b>${t.stn}</b><span class="sp"></span>
            <span class="ageChip">no TAF</span></div></div>`
-    : `<div class="obsCard ${t.dest?"dest":""}">
+    : `<div class="obsRow ${t.dest?"dest":""}">
       <div class="obsHead"><b>${t.stn}</b>${t.dest?'<span class="destTag">DESTINATION</span>':""}
         <span class="sp"></span><span class="ageChip">Forecast</span></div>
-      <div style="padding:.5rem .55rem">
-        ${t.rows.map(r=>`<div class="tafRow"><div class="per">${r[0]}</div>
-          <div class="vals">
-            <span>Visibility <b>${r[1]}</b></span><span>Weather <b>${r[2]}</b></span>
-            <span>Ceiling <b>${r[3]}</b></span>
-          </div></div>`).join("")}
-      </div></div>`).join("");
-  const adv=ADVS.map(a=>`<div class="advCard">
+      ${t.rows.map(r=>`<div class="tafPer">${esc(r[0])}</div>
+        <div class="obsMain">
+          <span class="m"><i>Ceiling</i><b>${r[3]}</b></span>
+          <span class="m"><i>Vis</i><b>${r[1]}</b></span>
+          <span class="m"><i>Wx</i><b class="words">${r[2]}</b></span>
+        </div>`).join("")}
+      </div>`).join("");
+  const adv=ADVS.map(a=>`<div class="advRow">
       <h4>${esc(a.k)}</h4><div class="txt">${esc(a.v)}</div>
       <div class="when">${esc(a.t)}</div></div>`).join("");
   // All three sections, always, for every participant.
@@ -2937,7 +3085,7 @@ function renderBrief(){
     el.style.display=open?"block":"none";
     // one source for the wording; the old pair of replace() calls still said
     // "raw" after the button itself had been relabelled "coded report"
-    b.textContent=(open?"Hide coded report ▴":"Show coded report ▾");
+    b.textContent=(open?"coded ▴":"coded ▾");
     TEL.log("raw",{id:b.dataset.raw,on:open});
   }));
 }
@@ -3349,39 +3497,56 @@ function exportResult(stage){
       while(s.length>18000 && n>0){ n=Math.floor(n*0.8); s=JSON.stringify(ev.slice(-n)); }
       put("DV_process",s);
       put("DV_process_truncated",n<ev.length?"1":"0");
+      /* Parts 2 to 4 go out through the same channel as part 1. The workbook
+         is a convenience copy for the participant, not the record: a download
+         that fails -- a sandboxed iframe without allow-downloads, a mobile
+         browser that discards the blob, a participant who never opens it --
+         would otherwise lose all 54 scale items and 9 background fields while
+         the scenario's own DV survived through three redundant paths. That
+         loss is not random either; it tracks device and browser confidence,
+         which track age, which is a covariate in this study. Subscale means
+         are written as their own fields so they survive truncation of the
+         item-level JSON. */
+      if(RESULT.svy){
+        Object.keys(RESULT.svy.sub).forEach(k=>put("SVY_"+k,RESULT.svy.sub[k]));
+        let sj=JSON.stringify(RESULT.svy.ans);
+        put("SVY_items",sj.length>18000?"":sj);
+        put("SVY_items_truncated",sj.length>18000?"1":"0");
+      }
     }
   }catch(e){ bridge.error=e&&e.message; console.warn("Qualtrics bridge unavailable",e); }
   RESULT.bridge=bridge;
   try{parent.postMessage({type:"DV_SCENARIO_"+stage.toUpperCase(),payload:RESULT},"*");}catch(e){}
+  // also expose the whole record for manual recovery if a download is lost
+  window.DV_FULL=RESULT;
   window.DV_RESULT=RESULT;
   TEL.log("export",{stage});
 }
 /* Last-ditch net: if the tab is hidden or torn down after items 1 and 2 are
    committed but before Finish, push what exists rather than losing the DV. */
 const netExport=()=>{ if(RESULT.response.destination_likelihood!==null
-  && RESULT.stage!=="complete")
+  /* "survey_complete" had to be added here. finish() writes "complete" and
+     correctly disarms this net, but svyWireDone then writes "survey_complete",
+     and the old single test re-armed it on a FULLY finished record. Every
+     completer who switched apps to find their downloaded file -- which the
+     thank-you page asks them to do, and which fires visibilitychange on iOS --
+     had DV_stage rewritten to "partial_followup", making them indistinguishable
+     in the backend from someone who abandoned on the pressure page. Reproduced
+     before the fix: survey_complete -> partial_followup on one tab switch. */
+  && RESULT.stage!=="complete" && RESULT.stage!=="survey_complete")
   exportResult(RESULT.response.perceived_pressure!==null?"partial_followup":"committed"); };
 addEventListener("pagehide",netExport);
 document.addEventListener("visibilitychange",()=>{ if(document.hidden) netExport(); });
 
+/* The scenario is part 1 of 4. It no longer ends the session: it commits its
+   own record and hands over to the scales. exportResult("complete") still runs
+   here, so a participant who abandons during part 2 has a usable scenario
+   record rather than nothing. */
 function finish(){
-  const r=RESULT.response;
   exportResult("complete");
-  gateCard.innerHTML=`<h2>Thank you — your responses have been recorded.</h2>
-    <div class="lead">Nothing further is needed on this page.</div>
-    <div class="gbox mono" style="font-size:var(--fs-md);line-height:1.9">
-      Likelihood of choosing KBBB <strong>${r.destination_likelihood}</strong><br>
-      Perceived pressure <strong>${r.perceived_pressure}</strong>
-    </div>
-    <p>If you were sent here from a survey, please return to that tab to finish.</p>
-    <button class="btn" id="dl">Download my response file</button>`;
-  gateCard.className="gatecard";
-  gate.classList.remove("off"); toTop();
-  document.getElementById("dl").addEventListener("click",()=>{
-    const b=new Blob([JSON.stringify(RESULT,null,2)],{type:"application/json"});
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(b);a.download="dv_scenario_response.json";a.click();});
   TEL.log("finish");
+  gate.classList.add("off");
+  svyStart();
 }
 
 /* ==================================================================== *
@@ -3558,7 +3723,13 @@ enterStage();
    Testing for any recorded stage costs a reloading participant items 3 and 4 --
    which DV_stage="committed" already marks as a known missingness pattern -- and
    that is strictly better than silently replacing the measurement itself. */
-if(priorStage){
+/* Retakes are permitted while piloting, so the same device (and the same IP)
+   can run the instrument repeatedly for testing. Set to false before live
+   collection: with retakes open, a second attempt overwrites the first in
+   whatever backend receives the record, and the guard below is the only thing
+   that prevents it. */
+const ALLOW_RETAKE=true;
+if(priorStage && !ALLOW_RETAKE){
   gateCard.className="gatecard";
   gateCard.innerHTML=`<h2>Your response is already recorded</h2>
     <div class="lead">Thank you — this scenario has been completed on this device.</div>
@@ -3576,29 +3747,571 @@ if(priorStage){
    a stray visitor out of a live instrument; it protects nothing. Delete this
    block when the study opens. Telemetry records that the door was passed so a
    response cannot be mistaken for one collected while the page was open.    */
-const ACCESS_CODE="REDACTED";
+/* ==================================================================== *
+ * 14.  SEALED ITEM PAYLOAD
+ *
+ *  There is no access code in this file. What follows is AES-256-GCM
+ *  ciphertext: base64(salt[16] || iv[12] || ciphertext+tag). The code the
+ *  participant types is run through PBKDF2-HMAC-SHA256 at 250,000 iterations
+ *  to derive the key, and GCM's authentication tag is what decides whether the
+ *  code was right -- a wrong code cannot produce a valid tag, so decryption
+ *  throws rather than returning plausible-looking rubbish. Nothing here can be
+ *  compared against, and there is no stored hash to attack offline.
+ *
+ *  The reason is not secrecy theatre. The TEIQue-SF is licensed by the London
+ *  Psychometric Laboratory and its items may not be published; a public GitHub
+ *  Pages repository publishes everything it holds. Ciphertext is the only form
+ *  in which those items can defensibly sit in this repository.
+ *
+ *  Regenerate with:  python tools/pack_payload.py tools/items.json <code>
+ *  tools/items.json holds the plaintext and lives OUTSIDE the deployed folder.
+ * ==================================================================== */
+const PAYLOAD="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";
+let ITEMS=null;
+
+const KDF={iters:250000, salt:16, iv:12};      // mirrored in pack_payload.py
+const b64bytes=s=>{const bin=atob(s),u=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u;};
+
+async function unseal(code){
+  const raw=b64bytes(PAYLOAD);
+  const salt=raw.slice(0,KDF.salt);
+  const iv=raw.slice(KDF.salt,KDF.salt+KDF.iv);
+  const ct=raw.slice(KDF.salt+KDF.iv);
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(code),
+    "PBKDF2",false,["deriveKey"]);
+  const key=await crypto.subtle.deriveKey(
+    {name:"PBKDF2",salt,iterations:KDF.iters,hash:"SHA-256"},
+    base,{name:"AES-GCM",length:256},false,["decrypt"]);
+  // throws on a wrong code: the GCM tag will not authenticate
+  const plain=await crypto.subtle.decrypt({name:"AES-GCM",iv},key,ct);
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
 (function(){
   const lock=document.getElementById("lock"), inp=document.getElementById("lockCode"),
         go=document.getElementById("lockGo"), msg=document.getElementById("lockMsg");
   if(!lock) return;
-  let tries=0;
-  const unlock=()=>{
-    if(inp.value.trim()===ACCESS_CODE){
+  let tries=0, busy=false;
+  const unlock=async()=>{
+    if(busy) return;
+    const code=inp.value.trim();
+    if(!code){ msg.textContent="Please enter the code."; return; }
+    busy=true; go.disabled=true; msg.style.color="";
+    msg.textContent="Checking…";          // PBKDF2 takes a moment on a phone
+    try{
+      ITEMS=await unseal(code);
       lock.classList.add("off");
       TEL.log("access_ok",{tries});
-      // hand focus to the page the participant is now looking at
       const b=document.getElementById("wzNext"); if(b) b.focus();
-    }else{
+    }catch(e){
       tries++;
       msg.textContent="That code is not right. Please check and try again.";
       TEL.log("access_fail",{tries});
       inp.select();
-    }
+    }finally{ busy=false; go.disabled=false; }
   };
   go.addEventListener("click",unlock);
   inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); unlock(); } });
   inp.focus();
 })();
+
+/* ==================================================================== *
+ * 15.  SURVEY -- parts 2 to 4
+ *
+ *  Order is fixed: scenario, risk perception, emotional intelligence,
+ *  background. Each scale is split so that one factor occupies one page.
+ *
+ *  GROUP_BY_FACET is true because that is what was asked for, and it is worth
+ *  knowing what it costs. TARPS is the author's own scale and was validated in
+ *  this arrangement, so grouping is free there. The TEIQue-SF is published in a
+ *  fixed 1-30 order and its norms come from that order; presenting it by facet
+ *  puts items that share a factor on one screen, where they cue one another and
+ *  tend to inflate internal consistency and sharpen the factor structure. Set
+ *  this to false to administer the TEIQue in its published order instead.
+ * ==================================================================== */
+/* Per scale, because the two cases are not alike.
+
+   TARPS: grouping costs nothing. Its published order IS Q1-Q5 cognitive,
+   Q6-Q10 affective, Q11-Q15 experiential, so one factor per page reproduces
+   the order the scale was validated in rather than departing from it.
+
+   TEIQue-SF: grouping IS a departure. The published form interleaves all 30
+   items and its norms come from that order. Presenting it by facet puts items
+   that share a factor on one screen where they cue one another, which tends to
+   inflate internal consistency and sharpen the factor structure -- an artefact
+   that looks like good measurement. Set teique:false to administer it in the
+   published 1-30 order instead, paged for readability. */
+const GROUP_BY_FACET={tarps:true, teique:true};
+
+const SVY={ page:0, pages:[], ans:{}, t0:0, times:{} };
+
+const svyEl=()=>document.getElementById("svy");
+const esc2=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function svyBuildPages(){
+  const P=[];
+  const scale=k=>ITEMS[k].scale;
+  for(const key of ["tarps","teique"]){
+    const S=ITEMS[key];
+    if(!S) continue;
+    let blocks;
+    if(GROUP_BY_FACET[key]) blocks=S.blocks;
+    else{
+      // published order, split into readable pages rather than one long scroll
+      const flat=S.blocks.flatMap(b=>b.items).sort((a,b)=>(a.n||0)-(b.n||0));
+      const per=10, out=[];
+      for(let i=0;i<flat.length;i+=per)
+        out.push({key:"seq"+(i/per+1),name:"",items:flat.slice(i,i+per)});
+      blocks=out;
+    }
+    blocks.forEach(b=>P.push({type:"likert",scaleKey:key,title:S.title,
+      lead:S.lead,scale:scale(key),block:b}));
+  }
+  if(ITEMS.demographics) P.push({type:"demo",spec:ITEMS.demographics});
+  P.push({type:"done"});
+  return P;
+}
+
+function svyStart(){
+  SVY.pages=svyBuildPages();
+  SVY.page=0;
+  svyEl().classList.remove("off");
+  document.body.style.overflow="hidden";
+  svyRender();
+  TEL.log("survey_start",{pages:SVY.pages.length});
+}
+
+function svyProgress(){
+  const total=SVY.pages.length;                 // includes the closing page
+  return {i:SVY.page+1,total,pct:Math.round((SVY.page/(total-1))*100)};
+}
+
+function svyRender(){
+  const p=SVY.pages[SVY.page], host=document.getElementById("svyInner");
+  const pr=svyProgress();
+  SVY.t0=performance.now();
+  let body="";
+  if(p.type==="likert") body=svyLikert(p);
+  else if(p.type==="demo") body=svyDemo(p);
+  else body=svyDone();
+
+  const nav = p.type==="done" ? "" : `
+    <div class="svyNav">
+      ${SVY.page>0?'<button class="btn ghost" id="svyBack">Back</button>':""}
+      <button class="btn" id="svyNext">${p.type==="demo"?"Finish":"Continue"}</button>
+    </div>
+    <div id="svyMsg" role="status"></div>`;
+
+  host.innerHTML=`
+    <div class="pgWrap">
+      <div class="pgBar"><div class="pgFill" style="width:${pr.pct}%"></div></div>
+      <div class="pgTxt"><span>Part ${pr.i} of ${pr.total}</span><span>${pr.pct}%</span></div>
+    </div>${body}${nav}`;
+
+  svyEl().scrollTop=0;
+  const nx=document.getElementById("svyNext");
+  if(nx) nx.addEventListener("click",svyNext);
+  const bk=document.getElementById("svyBack");
+  if(bk) bk.addEventListener("click",()=>{ SVY.page--; svyRender(); });
+  if(p.type==="likert") svyWireLikert(p);
+  if(p.type==="demo") svyWireDemo(p);
+  if(p.type==="done") svyWireDone();
+}
+
+function svyLikert(p){
+  const s=p.scale, n=s.max-s.min+1;
+  /* The block name is NOT rendered. "Cognitive", "Affective", "Well-Being" and
+     the rest are the names of the constructs the items are supposed to
+     measure; printing one at the top of a page tells the respondent what the
+     items below are for, and answers drift toward the label. The names are
+     kept in the payload for scoring and for the export, where they belong. */
+  const head=`<h1 class="svyH">${esc2(p.title)}</h1>
+    <p class="svySub">${esc2(p.lead)}</p>`;
+  const rows=p.block.items.map((it,i)=>{
+    const cur=SVY.ans[it.id];
+    const opts=Array.from({length:n},(_,k)=>{
+      const v=s.min+k;
+      return `<button type="button" class="qOpt${cur===v?" on":""}" data-id="${it.id}"
+        data-v="${v}" role="radio" aria-checked="${cur===v}"
+        aria-label="${v} of ${s.max}">${v}</button>`;
+    }).join("");
+    /* An item with no text must never render as a blank line. The licensed
+       TEIQue-SF wording is supplied separately, and a silent empty statement
+       would look like a rendering bug to a participant and could ship unnoticed. */
+    const body = (it.t && it.t.trim())
+      ? esc2(it.t)
+      : `<em class="qPend">[item ${it.n||it.id} — text not yet loaded]</em>`;
+    return `<div class="qItem" data-item="${it.id}">
+      <p class="qText"><span class="qNum">${i+1}.</span>${body}</p>
+      <div class="qScale" role="radiogroup" aria-label="${esc2(it.t)}">${opts}</div>
+      <div class="qAnch"><span>${esc2(s.low)}</span><span>${esc2(s.high)}</span></div>
+    </div>`;
+  }).join("");
+  return head+rows;
+}
+
+function svyWireLikert(p){
+  document.getElementById("svyInner").querySelectorAll(".qOpt").forEach(b=>{
+    b.addEventListener("click",()=>{
+      const id=b.dataset.id, v=+b.dataset.v;
+      SVY.ans[id]=v;
+      const grp=b.parentElement;
+      grp.querySelectorAll(".qOpt").forEach(o=>{
+        const on=+o.dataset.v===v;
+        o.classList.toggle("on",on); o.setAttribute("aria-checked",on);
+      });
+      b.closest(".qItem").classList.remove("miss");
+    });
+  });
+}
+
+function svyDemo(p){
+  const head=`<h1 class="svyH">${esc2(p.spec.title)}</h1>
+    <p class="svySub">${esc2(p.spec.lead)}</p>`;
+  const rows=p.spec.fields.map(f=>{
+    const cur=SVY.ans[f.id];
+    if(f.type==="choice"){
+      const opts=f.opts.map(o=>`<button type="button" class="dOpt${cur===o?" on":""}"
+        data-id="${f.id}" data-v="${esc2(o)}">${esc2(o)}</button>`).join("");
+      return `<div class="dRow" data-item="${f.id}"><span class="dLbl">${esc2(f.label)}</span>
+        <div class="dOpts" role="radiogroup" aria-label="${esc2(f.label)}">${opts}</div></div>`;
+    }
+    return `<div class="dRow" data-item="${f.id}">
+      <label class="dLbl" for="d_${f.id}">${esc2(f.label)}</label>
+      <input class="dIn" id="d_${f.id}" data-id="${f.id}" type="text" inputmode="numeric"
+        autocomplete="off" value="${cur!==undefined?esc2(cur):""}"></div>`;
+  }).join("");
+  return head+rows;
+}
+
+function svyWireDemo(p){
+  const host=document.getElementById("svyInner");
+  host.querySelectorAll(".dOpt").forEach(b=>b.addEventListener("click",()=>{
+    SVY.ans[b.dataset.id]=b.dataset.v;
+    b.parentElement.querySelectorAll(".dOpt").forEach(o=>o.classList.toggle("on",o===b));
+    b.closest(".dRow").classList.remove("miss");
+  }));
+  host.querySelectorAll(".dIn").forEach(inp=>inp.addEventListener("input",()=>{
+    const f=p.spec.fields.find(x=>x.id===inp.dataset.id);
+    const raw=inp.value.replace(/[^0-9]/g,"");
+    if(raw!==inp.value) inp.value=raw;
+    if(raw===""){ delete SVY.ans[f.id]; inp.classList.remove("bad"); return; }
+    const v=+raw, ok=v>=f.min&&v<=f.max;
+    inp.classList.toggle("bad",!ok);
+    if(ok){ SVY.ans[f.id]=v; inp.closest(".dRow").classList.remove("miss"); }
+    else delete SVY.ans[f.id];
+  }));
+}
+
+/* Every item is required. Rather than an alert, the first unanswered item is
+   marked, counted, and scrolled to -- a participant who has missed one of
+   thirty needs to be shown WHICH, not told THAT. */
+function svyNext(){
+  const p=SVY.pages[SVY.page], msg=document.getElementById("svyMsg");
+  const need = p.type==="likert" ? p.block.items.map(i=>i.id)
+             : p.type==="demo"   ? p.spec.fields.filter(f=>f.req).map(f=>f.id) : [];
+  const missing=need.filter(id=>SVY.ans[id]===undefined);
+  if(missing.length){
+    document.getElementById("svyInner").querySelectorAll(".qItem,.dRow")
+      .forEach(el=>el.classList.toggle("miss",missing.includes(el.dataset.item)));
+    msg.textContent = missing.length===1
+      ? "One item still needs an answer."
+      : missing.length+" items still need an answer.";
+    const first=document.querySelector('[data-item="'+missing[0]+'"]');
+    if(first) first.scrollIntoView({behavior:"smooth",block:"center"});
+    TEL.log("survey_incomplete",{page:SVY.page,missing:missing.length});
+    return;
+  }
+  SVY.times["page"+SVY.page]=Math.round(performance.now()-SVY.t0);
+  SVY.page++;
+  svyRender();
+}
+
+/* ---- scoring ----------------------------------------------------------
+   Reverse-coded items are flipped here, once, so the exported workbook holds
+   both the raw response and the scored value. Analysts should never have to
+   guess which convention a column is in. */
+function svyScores(){
+  const out={raw:{},scored:{},sub:{}};
+  for(const key of ["tarps","teique"]){
+    const S=ITEMS[key]; if(!S) continue;
+    const max=S.scale.max, min=S.scale.min;
+    for(const b of S.blocks){
+      const vals=[];
+      for(const it of b.items){
+        const raw=SVY.ans[it.id];
+        out.raw[it.id]=raw===undefined?"":raw;
+        const sc=(raw===undefined)?"":(it.r?(max+min-raw):raw);
+        out.scored[it.id]=sc;
+        if(sc!=="") vals.push(sc);
+      }
+      if(vals.length)
+        out.sub[key+"_"+b.key]=+(vals.reduce((a,c)=>a+c,0)/vals.length).toFixed(4);
+    }
+    const all=S.blocks.flatMap(b=>b.items).map(i=>out.scored[i.id]).filter(v=>v!=="");
+    if(all.length) out.sub[key+"_global"]=+(all.reduce((a,c)=>a+c,0)/all.length).toFixed(4);
+  }
+  return out;
+}
+
+/* ---- XLSX ------------------------------------------------------------
+   Written by hand. A .xlsx is a ZIP of XML parts, and the page carries no
+   external libraries by design -- a CDN script would be a third-party request
+   on a page that collects research data, and would break under any strict
+   content policy. Entries are stored uncompressed: a few kilobytes of XML do
+   not need deflate, and store-only keeps this to one CRC routine. */
+const CRCT=(()=>{const t=new Uint32Array(256);
+  for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}
+  return t;})();
+const crc32=u=>{let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRCT[(c^u[i])&0xFF]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0;};
+const enc=s=>new TextEncoder().encode(s);
+const xesc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[c]));
+
+function zipBuild(files){
+  const parts=[], central=[]; let off=0;
+  const u16=n=>[n&255,(n>>8)&255];
+  const u32=n=>[n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255];
+  for(const f of files){
+    const name=enc(f.name), data=f.data, crc=crc32(data);
+    const local=[...u32(0x04034b50),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),
+      ...u32(crc),...u32(data.length),...u32(data.length),
+      ...u16(name.length),...u16(0)];
+    parts.push(new Uint8Array(local),name,data);
+    central.push({name,crc,len:data.length,off});
+    off+=local.length+name.length+data.length;
+  }
+  const cdir=[];
+  for(const c of central){
+    cdir.push(...u32(0x02014b50),...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),
+      ...u32(c.crc),...u32(c.len),...u32(c.len),...u16(c.name.length),
+      ...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(c.off));
+    cdir.push(...c.name);
+  }
+  const cd=new Uint8Array(cdir);
+  const end=new Uint8Array([...u32(0x06054b50),...u16(0),...u16(0),
+    ...u16(central.length),...u16(central.length),...u32(cd.length),...u32(off),...u16(0)]);
+  const total=parts.reduce((a,p)=>a+p.length,0)+cd.length+end.length;
+  const out=new Uint8Array(total); let q=0;
+  for(const p of parts){out.set(p,q);q+=p.length;}
+  out.set(cd,q); q+=cd.length; out.set(end,q);
+  return out;
+}
+
+/* Column widths are measured, not guessed. A flat width made a 1-to-7 response
+   column as wide as a timestamp, so the Data sheet ran off the screen for no
+   reason. Each column is sized to the longest thing actually in it, clamped so
+   one long free-text answer cannot stretch the sheet. */
+function autoWidths(rows,min,max){
+  const n=rows.reduce((m,r)=>Math.max(m,r.length),0), w=new Array(n).fill(min);
+  for(const r of rows) r.forEach((c,i)=>{
+    if(c===null||c===undefined||c==="") return;
+    const v=(c&&c.v!==undefined)?c.v:c;
+    const len=String(v).length + (typeof v==="number"?1:2);
+    if(len>w[i]) w[i]=len;
+  });
+  return w.map(x=>Math.min(max,Math.max(min,Math.round(x*10)/10)));
+}
+
+function sheetXml(rows,cols,freeze){
+  const colXml=cols?`<cols>${cols.map((w,i)=>
+    `<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")}</cols>`:"";
+  /* Freeze the header so the item codes stay visible while scrolling a sheet
+     that is over a hundred columns wide. */
+  const view=freeze?`<sheetViews><sheetView workbookViewId="0">`+
+    `<pane ySplit="${freeze}" topLeftCell="A${freeze+1}" activePane="bottomLeft" state="frozen"/>`+
+    `<selection pane="bottomLeft" activeCell="A${freeze+1}" sqref="A${freeze+1}"/>`+
+    `</sheetView></sheetViews>`:"";
+  const body=rows.map((r,ri)=>{
+    const cells=r.map((c,ci)=>{
+      if(c===null||c===undefined||c==="") return "";
+      const ref=colName(ci)+(ri+1);
+      const st=c&&c.s?` s="${c.s}"`:"";
+      const v=c&&c.v!==undefined?c.v:c;
+      return (typeof v==="number")
+        ? `<c r="${ref}"${st}><v>${v}</v></c>`
+        : `<c r="${ref}"${st} t="inlineStr"><is><t xml:space="preserve">${xesc(v)}</t></is></c>`;
+    }).join("");
+    return `<row r="${ri+1}">${cells}</row>`;
+  }).join("");
+  // order matters in the schema: sheetViews, then cols, then sheetData
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${view}${colXml}<sheetData>${body}</sheetData></worksheet>`;
+}
+function colName(i){let s="";i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=(i-m-1)/26;}return s;}
+
+const STYLES=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="4">
+ <font><sz val="11"/><name val="Calibri"/></font>
+ <font><b/><sz val="11"/><name val="Calibri"/></font>
+ <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+ <font><b/><sz val="13"/><color rgb="FF0F3557"/><name val="Calibri"/></font>
+</fonts>
+<fills count="4">
+ <fill><patternFill patternType="none"/></fill>
+ <fill><patternFill patternType="gray125"/></fill>
+ <fill><patternFill patternType="solid"><fgColor rgb="FF0F3557"/><bgColor indexed="64"/></patternFill></fill>
+ <fill><patternFill patternType="solid"><fgColor rgb="FFEAF0F6"/><bgColor indexed="64"/></patternFill></fill>
+</fills>
+<borders count="2">
+ <border><left/><right/><top/><bottom/><diagonal/></border>
+ <border><left/><right/><top/><bottom style="thin"><color rgb="FFC9D3DC"/></bottom><diagonal/></border>
+</borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="5">
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+ <xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>
+ <xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+ <xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment wrapText="1"/></xf>
+</cellXfs>
+<!-- Without a named Normal style a reader reports "workbook contains no
+     default style" and substitutes its own; Excel is more forgiving than
+     openpyxl here but there is no reason to ship the ambiguity. applyAlignment
+     is likewise required for the alignment child to take effect at all. -->
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+
+function buildXlsx(){
+  const sc=svyScores(), r=RESULT.response||{}, m=RESULT.meta||{};
+  const H=v=>({v,s:1}), T=v=>({v,s:2}), K=v=>({v,s:3}), C=v=>({v,s:4});
+
+  // Sheet 1 -- one header row, one data row. Stack many of these to build the
+  // analysis file; the column order never changes between respondents.
+  const cols=[], vals=[];
+  const put=(k,v)=>{cols.push(k);vals.push(v===undefined||v===null?"":v);};
+  put("run_id",RESULT.run_id); put("completed_utc",new Date().toISOString());
+  put("DV_likelihood",r.destination_likelihood); put("DV_action",r.action);
+  put("DV_action_text",r.action_text); put("DV_trigger",r.diversion_trigger);
+  put("DV_pressure",r.perceived_pressure); put("DV_reason",r.reason);
+  for(const key of ["tarps","teique"]){
+    const S=ITEMS[key]; if(!S) continue;
+    for(const b of S.blocks) for(const it of b.items){
+      put(it.id,sc.raw[it.id]);
+      if(it.r) put(it.id+"_sc",sc.scored[it.id]);
+    }
+  }
+  Object.keys(sc.sub).forEach(k=>put(k,sc.sub[k]));
+  (ITEMS.demographics?ITEMS.demographics.fields:[]).forEach(f=>put(f.id,SVY.ans[f.id]));
+  put("device",m.dev||DEV); put("viewport",(m.w||0)+"x"+(m.h||0)); put("dpr",m.dpr||1);
+  put("scenario_ms",r.screen_time_ms);
+  Object.keys(SVY.times).forEach(k=>put("t_"+k,SVY.times[k]));
+
+  // narrow by default; a long action_text or reason is clamped rather than
+  // allowed to set the width of the whole sheet
+  const d1=[cols.map(H),vals];
+  const sheet1=sheetXml(d1,autoWidths(d1,5.5,26),1);
+
+  // Sheet 2 -- the same record laid out to be read by a human.
+  const rows=[[T("Weather-Related Decision-Making Survey")],[],
+    [K("Field"),K("Response")]];
+  const add=(a,b)=>rows.push([C(a),C(b===undefined||b===null?"":b)]);
+  rows.push([T("Part 1 — Scenario")]);
+  add("Likelihood of choosing KBBB (0-100)",r.destination_likelihood);
+  add("Immediate action",r.action_text);
+  if(r.diversion_trigger) add("Diversion trigger",r.diversion_trigger);
+  add("Perceived pressure (0-100)",r.perceived_pressure);
+  if(r.reason) add("Reason",r.reason);
+  for(const key of ["tarps","teique"]){
+    const S=ITEMS[key]; if(!S) continue;
+    rows.push([],[T("Part — "+S.title)]);
+    for(const b of S.blocks){
+      rows.push([K(b.name||"Items"),K("Raw / scored")]);
+      for(const it of b.items)
+        add(it.t||it.id, sc.raw[it.id]+(it.r?"  (scored "+sc.scored[it.id]+")":""));
+      const k=key+"_"+b.key;
+      if(sc.sub[k]!==undefined) add("— "+(b.name||"subscale")+" mean",sc.sub[k]);
+    }
+    if(sc.sub[key+"_global"]!==undefined) add("— overall mean",sc.sub[key+"_global"]);
+  }
+  if(ITEMS.demographics){
+    rows.push([],[T("Background")]);
+    ITEMS.demographics.fields.forEach(f=>add(f.label,SVY.ans[f.id]));
+  }
+  // the readable sheet wants a wide first column for item text and a tight
+  // second one for the response; measure but clamp both
+  const w2=autoWidths(rows,10,64);
+  const sheet2=sheetXml(rows,[Math.min(64,Math.max(38,w2[0]||38)),
+                              Math.min(26,Math.max(12,w2[1]||14))],3);
+
+  const files=[
+    {name:"[Content_Types].xml",data:enc(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`)},
+    {name:"_rels/.rels",data:enc(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`)},
+    {name:"xl/workbook.xml",data:enc(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets><sheet name="Data" sheetId="1" r:id="rId1"/><sheet name="Readable" sheetId="2" r:id="rId2"/></sheets></workbook>`)},
+    {name:"xl/_rels/workbook.xml.rels",data:enc(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`)},
+    {name:"xl/styles.xml",data:enc(STYLES)},
+    {name:"xl/worksheets/sheet1.xml",data:enc(sheet1)},
+    {name:"xl/worksheets/sheet2.xml",data:enc(sheet2)}
+  ];
+  return zipBuild(files);
+}
+
+function svyDone(){
+  return `<h1 class="svyH">Thank you</h1>
+    <p class="svySub">Your responses are complete. Please download your file and
+    return it as instructed.</p>
+    <div class="svyNav"><button class="btn" id="svyDl">Download my responses (.xlsx)</button></div>
+    <div id="svyMsg" role="status"></div>`;
+}
+
+function svyWireDone(){
+  SVY.times.total=Object.keys(SVY.times).reduce((a,k)=>a+(k==="total"?0:SVY.times[k]),0);
+  // attach the scales to the record BEFORE exporting, or the export carries a
+  // "finished" flag with none of the data behind it
+  if(Object.keys(SVY.ans).length){
+    const s=svyScores();
+    RESULT.svy={ans:SVY.ans, scored:s.scored, sub:s.sub, times:SVY.times};
+  }
+  exportResult("survey_complete");
+  TEL.log("survey_done");
+  const btn=document.getElementById("svyDl"), msg=document.getElementById("svyMsg");
+  const dl=()=>{
+    try{
+      const bytes=buildXlsx();
+      const blob=new Blob([bytes],
+        {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);
+      a.download="pilot_survey_"+String(RESULT.run_id).slice(0,8)+".xlsx";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      /* Do not claim success. A click on a blob URL is fire-and-forget: a
+         sandboxed iframe without allow-downloads, or a mobile browser that
+         discards the blob, swallows it silently and no exception is thrown.
+         Saying "Downloaded." when nothing arrived sends the participant away
+         believing they are finished. Say what was attempted instead, and give
+         them a way to tell us it failed. */
+      msg.style.color="var(--ink2)";
+      msg.textContent="If the file did not save, press the button again.";
+      TEL.log("xlsx_download");
+    }catch(e){
+      msg.style.color="#bf5420";
+      msg.textContent="Download failed: "+e.message;
+    }
+  };
+  btn.addEventListener("click",dl);
+  dl();                       // first one automatically; the button repeats it
+}
 </script>
 </body>
 </html>
