@@ -334,8 +334,18 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
   font-family:var(--serif);font-size:2.9em;line-height:.86;
   padding:.06em .1em 0 0;color:var(--parchInk)}
 @media (min-width:620px){
-  .gatecard.consent .icfBody p{text-align:justify;hyphens:auto} }
-.icfCert{margin:1rem 2.1rem 0;padding:.65rem .2rem;background:transparent;
+  .gatecard.consent .icfBody p{text-align:justify;hyphens:auto}
+  /* A justified line can only stretch, and an email address offers nowhere to
+     break. Article VII carries two of them, and they were dragging the lines
+     above into visibly loose spacing. Paragraphs holding an unbreakable run set
+     ragged-right instead; every other Article stays justified. */
+  .gatecard.consent .icfBody p.ragged{text-align:left} }
+/* Specificity again: `.gatecard p` is declared later at higher weight and was
+   flattening the side margins to zero, so the certification rules ran the full
+   width of the sheet and outside the inner frame while the Articles sat inset.
+   The rules have to align with the text column they close. */
+.gatecard.consent .icfCert{margin:1rem 2.1rem 0}
+.icfCert{padding:.65rem .2rem;background:transparent;
   border:0;border-top:1px solid var(--parchLine);border-bottom:1px solid var(--parchLine);
   border-radius:0;font-family:var(--serif);font-size:var(--fs-sm) !important;
   line-height:1.55 !important;color:var(--parchInk) !important;font-weight:400;
@@ -344,6 +354,10 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
   font-size:var(--fs-xs);font-variant-caps:small-caps;text-transform:lowercase;
   letter-spacing:.2em;font-weight:400;color:#7a6a52;margin-bottom:.25rem;
   font-style:normal}
+/* The footer sits inside .icfBody, so the justify rule for Articles was
+   outranking its centring and setting it flush left -- and it carries an email
+   that justification cannot break. Centred explicitly at matching weight. */
+.gatecard.consent .icfBody p.icfMeta{text-align:center}
 .icfMeta{font-family:var(--serif);font-size:var(--fs-xs) !important;
   color:#7a6a52 !important;font-style:italic;text-align:center;
   padding:.7rem 0 0;margin-top:.85rem !important;border-top:0}
@@ -371,7 +385,8 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
   .icfSheet::before{inset:8px 10px}
   .gatecard.consent h2,.icfStudy,.icfMast,.icfBody,.icfBtns{padding-left:1.2rem;
     padding-right:1.2rem}
-  .icfSep,.icfCert{margin-left:1.2rem;margin-right:1.2rem}
+  .icfSep{margin-left:1.2rem;margin-right:1.2rem}
+  .gatecard.consent .icfCert{margin-left:1.2rem;margin-right:1.2rem}
   .icfBody h3{letter-spacing:.11em}
 }
 .wzNav{display:flex;gap:.5rem;padding:.55rem 1rem 1rem;margin-top:auto;
@@ -3596,7 +3611,8 @@ function showConsent(){
     <hr class="icfSep">
     <div class="icfBody">
       ${C.sections.map(([h,t])=>
-        `<h3>${esc(h)}</h3><p>${esc(t)}</p>`).join("")}
+        `<h3>${esc(h)}</h3><p${/[^\s-]{16,}/.test(t)?' class="ragged"':""}>${esc(t)}</p>`
+      ).join("")}
       <p class="icfMeta">${esc(C.approval)}<br>${esc(C.copy)}</p>
     </div>
     <p class="icfCert">${esc(C.certify)}</p>
