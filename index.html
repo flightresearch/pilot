@@ -1262,15 +1262,15 @@ const SCEN={
    is shown alongside the 2000Z observations rather than discarded. */
 const METARS=[
  {stn:"KBBB",dest:true,zulu:2000,
-  raw:"KBBB 192000Z 23014G22KT 4SM RA BR OVC015",
+  raw:"KBBB 192000Z 23014G22KT 4SM RA BR OVC015 18/17 A2990",
   wind:"230° at 14 kt, gusting 22",vis:"4 SM",wx:"Rain, mist",cld:"OVC015",tt:"18/17",alt:"A2990",
   plot:{wdir:230,wspd:14,gst:22,vis:4,ceil:1500,cover:"OVC",temp:18,dew:17}},
  {stn:"KCCC",zulu:2000,
-  raw:"KCCC 192000Z 24010G16KT 7SM -RA BKN030",
+  raw:"KCCC 192000Z 24010G16KT 7SM -RA BKN030 22/20 A2992",
   wind:"240° at 10 kt, gusting 16",vis:"7 SM",wx:"Light rain",cld:"BKN030",tt:"22/20",alt:"A2992",
   plot:{wdir:240,wspd:10,gst:16,vis:7,ceil:3000,cover:"BKN",temp:22,dew:20}},
  {stn:"KBBB",dest:true,zulu:1900,prior:true,
-  raw:"KBBB 191900Z 22012G18KT 6SM -RA BKN025",
+  raw:"KBBB 191900Z 22012G18KT 6SM -RA BKN025 22/21 A2993",
   wind:"220° at 12 kt, gusting 18",vis:"6 SM",wx:"Light rain",cld:"BKN025",tt:"22/21",alt:"A2993",
   plot:{wdir:220,wspd:12,gst:18,vis:6,ceil:2500,cover:"BKN",temp:22,dew:21}}
 ];
@@ -3246,14 +3246,23 @@ function obsCard(m){
       <span class="m"><i>Vis</i><b>${p.vis} SM</b></span>
       <span class="m"><i>Wind</i><b>${p.wdir}° ${p.wspd}${p.gst?"G"+p.gst:""} kt</b></span>
       <span class="m"><i>Wx</i><b class="words">${m.wx}</b></span>
+      <!-- Parity is the point. If the coded line states temperature, dew point
+           and altimeter, the plain view must state them too: otherwise what a
+           participant is exposed to depends on which view they read, and the
+           study calls the stimulus standardized. -->
+      <span class="m"><i>Temp/Dew</i><b>${p.temp}&deg;C / ${p.dew}&deg;C</b></span>
+      <span class="m"><i>Altimeter</i><b>${(+m.alt.slice(1)/100).toFixed(2)} inHg</b></span>
     </div>
-    <!-- Labelled an extract, not a METAR. The scenario document specifies wind,
-         visibility, present weather and sky condition; temperature, dew point
-         and altimeter are not given, and inventing them would add decision-
-         relevant information the author never authored (a small spread implies
-         fog, a falling altimeter implies deterioration). But a coded report
-         missing its mandatory groups reads as malformed to any pilot who opens
-         it, so the label states what it is instead. -->
+    <!-- Full METARs, at the author's direction. The scenario document gives
+         wind, visibility, present weather and sky condition only, so these
+         reports previously stopped there and were labelled an extract rather
+         than a METAR. Carrying the professional label while omitting mandatory
+         groups reads as malformed to any pilot who opens it, so the groups are
+         supplied. They are decision-relevant and were checked for consistency
+         with the authored weather rather than filled in blind: KBBB's 1 degree
+         spread supports the reported mist, and the altimeter falling 29.93 to
+         29.90 over the hour agrees with the showers approaching from the west
+         instead of arguing against them. -->
 
   </div>`;
 }
