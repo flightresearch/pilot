@@ -256,21 +256,44 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
    Set as a document, not as a UI screen: a readable measure, real headings,
    and a scrollable body so the two buttons stay reachable without the reader
    having to hunt for them at the end of a long scroll. */
-.gatecard.consent{max-width:46rem}
-.icfStudy{font-size:var(--fs-lg);font-weight:700;color:var(--navy);
+/* Bounded to the viewport and laid out as a column so the prose scroller takes
+   whatever height is left over. A fixed max-height on the scroller instead pushed
+   the certification and both buttons off the bottom of a 667px iPhone SE. */
+.gatecard.consent{max-width:46rem;display:flex;flex-direction:column;
+  max-height:calc(100vh - 1.6rem);max-height:calc(100dvh - 1.6rem)}
+.icfStudy{flex:0 0 auto;font-size:var(--fs-lg);font-weight:700;color:var(--navy);
   padding:0 1rem .5rem;line-height:1.3}
-.icfBody{padding:0 1rem;max-height:56vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+.icfBody{padding:0 1rem;flex:1 1 auto;min-height:4rem;overflow-y:auto;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
   border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .icfBody h3{font-size:var(--fs-md);color:var(--navy);margin:.9rem 0 .2rem;
   font-weight:700}
 .icfBody h3:first-child{margin-top:.7rem}
 .icfBody p{margin:0 0 .5rem;font-size:var(--fs-md);line-height:1.5;color:var(--ink2)}
-.icfCert{margin-top:1rem !important;padding:.6rem .7rem;background:var(--blue2);
-  border-radius:8px;color:var(--ink) !important;font-weight:600}
+.icfCert{flex:0 0 auto;margin:.7rem 1rem 0;padding:.55rem .65rem;background:var(--blue2);
+  border-radius:8px;color:var(--ink) !important;font-weight:600;
+  font-size:var(--fs-sm) !important;line-height:1.4 !important}
 .icfMeta{font-size:var(--fs-xs) !important;color:var(--muted) !important;
   padding-bottom:.8rem}
-.icfBtns{display:flex;gap:.6rem;padding:.9rem 1rem 1rem}
+.icfBtns{flex:0 0 auto;display:flex;gap:.6rem;padding:.9rem 1rem 1rem}
 .icfBtns .btn{flex:1;min-height:3.4rem}
+/* Short viewports drop the inner scroller entirely. Bounding the card to the
+   screen there left the certification band occupying more height than the form
+   it certifies, and the consent prose reading through a four-line peephole. The
+   whole document flows instead and the button row sticks to the bottom of the
+   screen, so the form reads at natural length, the certification arrives
+   immediately before the buttons, and AGREE is always in reach. */
+@media (max-height:740px){
+  .gatecard.consent{display:block;max-height:none}
+  .icfBody{max-height:none;overflow:visible;border-bottom:0}
+  .icfCert{margin-top:.2rem}
+  .icfBtns{position:sticky;bottom:0;background:var(--card);
+    border-top:1px solid var(--line);padding:.7rem 1rem .8rem;
+    box-shadow:0 -10px 14px -8px rgba(20,27,33,.18)}
+  .icfBtns .btn{min-height:3rem}
+  .gatecard.consent h2{margin-bottom:.15rem}
+  .icfStudy{font-size:var(--fs-md);padding-bottom:.35rem}
+}
 .icfBtns .btn.ghost{flex:0 0 38%;background:#fff;color:var(--navy);
   border:2px solid var(--line2)}
 .wzNav{display:flex;gap:.5rem;padding:.55rem 1rem 1rem;margin-top:auto;
@@ -3492,9 +3515,9 @@ function showConsent(){
     <div class="icfBody">
       ${C.sections.map(([h,t])=>
         `<h3>${esc(h)}</h3><p>${esc(t)}</p>`).join("")}
-      <p class="icfCert">${esc(C.certify)}</p>
       <p class="icfMeta">${esc(C.approval)}<br>${esc(C.copy)}</p>
     </div>
+    <p class="icfCert">${esc(C.certify)}</p>
     <div class="icfBtns">
       <button class="btn" id="icfYes">${esc(C.agree)}</button>
       <button class="btn ghost" id="icfNo">${esc(C.decline)}</button>
