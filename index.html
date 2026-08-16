@@ -277,17 +277,32 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
    gutter the dowel can overhang into is the gate's own padding. It is widened
    while the scroll is on screen -- otherwise the turned caps are sliced off
    flush against the viewport edge on a phone. */
-#gate:has(.gatecard.consent){padding-left:1.35rem;padding-right:1.35rem}
-.icfRoll{position:relative;height:26px;margin:0 -11px;border-radius:13px;z-index:2;
-  background:linear-gradient(180deg,#b09d78 0%,#ddd0b2 15%,#fbf6ea 39%,
-    #f1e7d2 57%,#cdbe9c 82%,#9d8b68 100%);
-  box-shadow:0 2px 7px rgba(42,33,21,.30),inset 0 0 0 1px rgba(122,106,82,.35)}
+#gate:has(.gatecard.consent){padding-left:1.9rem;padding-right:1.9rem}
+.icfRoll{position:relative;height:36px;margin:0 -15px;border-radius:18px;z-index:2;
+  background:linear-gradient(180deg,#a89465 0%,#d8c9a6 13%,#fbf6ea 37%,
+    #f2e8d3 55%,#c9b894 80%,#94815d 100%);
+  box-shadow:0 3px 9px rgba(42,33,21,.34),inset 0 0 0 1px rgba(122,106,82,.38)}
+/* The turned caps at each end of the rod. */
 .icfRoll::before,.icfRoll::after{content:"";position:absolute;top:50%;
-  width:13px;height:34px;transform:translateY(-50%);border-radius:6px;
-  background:linear-gradient(180deg,#8b7a59,#d5c6a5 35%,#f3ebd9 52%,#b7a582 78%,#7d6d4f);
-  box-shadow:0 1px 4px rgba(42,33,21,.35)}
-.icfRoll::before{left:-9px}
-.icfRoll::after{right:-9px}
+  width:18px;height:47px;transform:translateY(-50%);border-radius:9px;
+  background:linear-gradient(180deg,#7f6e4e,#d2c2a0 33%,#f5eddb 51%,#b19e79 76%,#70603f);
+  box-shadow:0 2px 5px rgba(42,33,21,.38)}
+.icfRoll::before{left:-12px}
+.icfRoll::after{right:-12px}
+/* Threads off the ends. Three strands per side, each a hairline gradient that
+   fades as it falls, at slightly different lengths so the bundle does not read
+   as a comb. Drawn rather than imaged, like everything else on the sheet. */
+.icfThr{position:absolute;top:calc(100% - 4px);width:15px;height:30px;
+  pointer-events:none;
+  background-image:
+    linear-gradient(180deg,rgba(140,124,94,.85),rgba(140,124,94,0)),
+    linear-gradient(180deg,rgba(140,124,94,.70),rgba(140,124,94,0)),
+    linear-gradient(180deg,rgba(140,124,94,.80),rgba(140,124,94,0));
+  background-size:1px 27px,1px 18px,1px 23px;
+  background-position:3px 0,8px 0,12px 0;
+  background-repeat:no-repeat}
+.icfThrL{left:-11px;transform:rotate(3deg)}
+.icfThrR{right:-11px;transform:rotate(-3deg)}
 .icfRollTop{margin-bottom:-3px}
 .icfRollBot{margin-top:-3px}
 /* The sheet. The edge gradients read as the slight cylindrical curl of paper
@@ -374,10 +389,14 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
      be widened from here; the dowel is scaled down instead, which is what a
      narrower scroll wants in any case. */
   .gatecard.consent{max-width:none;margin:.5rem auto 1.2rem}
-  .icfRoll{margin:0 -6px;height:22px;border-radius:11px}
-  .icfRoll::before,.icfRoll::after{width:10px;height:29px;border-radius:5px}
-  .icfRoll::before{left:-5px}
-  .icfRoll::after{right:-5px}
+  .icfRoll{margin:0 -9px;height:29px;border-radius:15px}
+  .icfRoll::before,.icfRoll::after{width:13px;height:38px;border-radius:7px}
+  .icfRoll::before{left:-8px}
+  .icfRoll::after{right:-8px}
+  .icfThr{width:12px;height:24px;background-size:1px 21px,1px 14px,1px 18px;
+    background-position:2px 0,6px 0,9px 0}
+  .icfThrL{left:-8px}
+  .icfThrR{right:-8px}
   .icfSheet{padding-top:1.3rem}
   .icfSheet::before{inset:8px 10px}
   .gatecard.consent h2,.icfStudy,.icfBody,.icfBtns{padding-left:1.2rem;
@@ -500,6 +519,11 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 .briefH{font-size:var(--fs-lg);color:var(--navy);margin:1.9rem 0 .5rem;
   padding-bottom:.25rem;border-bottom:2px solid var(--line)}
 .briefH:first-child{margin-top:0}
+/* A group owns its heading and its reports, so the first-row rule and the
+   heading spacing resolve per block instead of across the whole briefing. */
+.briefGrp{min-width:0}
+.briefGrp>.briefH{margin-top:0}
+.briefGrp+.briefGrp{margin-top:1.7rem}
 .briefH+.obsRow{border-top:none}
 .briefSec{border-top:2px solid var(--line);margin-top:1.6rem;padding-top:.2rem}
 .briefSec:first-of-type{border-top:none;margin-top:0}
@@ -827,9 +851,10 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
   #secXs    {grid-column:1;   grid-row:4}
   #secCam   {grid-column:2;   grid-row:4}
   #secDecide{grid-column:1/3; grid-row:5}
-  /* briefing cards two-up under full-width section headings */
-  #briefBody{display:grid;grid-template-columns:1fr 1fr;gap:0 1rem;align-items:start}
-  .briefH{grid-column:1/3}
+  /* METAR in one column, TAF in the other, advisories across the foot. */
+  #briefBody{display:grid;grid-template-columns:1fr 1fr;gap:0 1.5rem;align-items:start}
+  .briefGrp+.briefGrp{margin-top:0}
+  .briefAdv{grid-column:1/-1;margin-top:1.7rem}
   /* two columns of rows, not four columns of cards: the sub-lines need width */
   #sitGrid{grid-template-columns:1fr 1fr}
   /* Keep the form to a readable measure inside a full-width card. Unconstrained
@@ -3261,10 +3286,15 @@ function renderBrief(){
       <h4>${esc(a.k)}</h4><div class="txt">${esc(a.v)}</div>
       <div class="when">${esc(a.t)}</div></div>`).join("");
   // All three sections, always, for every participant.
+  /* Each block is its own group. Flat, the headings and rows were siblings in
+     a two-column grid, so the reports flowed across columns and a heading
+     could sit beside rows belonging to the block above it. Wrapped, METAR
+     holds its own column and TAF holds the other, each with its reports
+     stacked underneath, and the advisories run full width below both. */
   briefBody.innerHTML=
-    `<h3 class="briefH">Observations</h3>${obs}
-     <h3 class="briefH">Forecast</h3>${fcst}
-     <h3 class="briefH">Advisories</h3>${adv}`;
+    `<section class="briefGrp"><h3 class="briefH">METAR</h3>${obs}</section>
+     <section class="briefGrp"><h3 class="briefH">TAF</h3>${fcst}</section>
+     <section class="briefGrp briefAdv"><h3 class="briefH">Advisories</h3>${adv}</section>`;
   briefBody.querySelectorAll("[data-raw]").forEach(b=>b.addEventListener("click",()=>{
     const el=document.getElementById(b.dataset.raw);
     const open=el.style.display==="none";
@@ -3600,7 +3630,8 @@ function showConsent(){
   if(!C){ showWizard(); return; }          // never block the study on a missing block
   gateCard.className="gatecard consent";
   gateCard.innerHTML=`
-    <div class="icfRoll icfRollTop" aria-hidden="true"></div>
+    <div class="icfRoll icfRollTop" aria-hidden="true">
+      <i class="icfThr icfThrL"></i><i class="icfThr icfThrR"></i></div>
     <div class="icfSheet">
     <h2>${esc(C.docLabel||C.title)}</h2>
     <div class="icfStudy">${esc(C.study)}</div>
@@ -3617,7 +3648,8 @@ function showConsent(){
       <button class="btn ghost" id="icfNo">${esc(C.decline)}</button>
     </div>
     </div>
-    <div class="icfRoll icfRollBot" aria-hidden="true"></div>`;
+    <div class="icfRoll icfRollBot" aria-hidden="true">
+      <i class="icfThr icfThrL"></i><i class="icfThr icfThrR"></i></div>`;
   gate.classList.remove("off"); toTop();
   const hd=gateCard.querySelector("h2");
   if(hd){ hd.tabIndex=-1; hd.focus(); }
