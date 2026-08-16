@@ -3605,9 +3605,21 @@ function finish(){
  * 12.  SIZING  (canvases are drawn once per change, not per frame)
  * ==================================================================== */
 function sizeCanvas(c,cssH,dprCap){
+  /* MDPR is set BEFORE the width guard, not after it. It used to be assigned on
+     the line below the early return, and that return fires at boot: the intro
+     covers the page, so `body:has(#gate:not(.off)) main{display:none}` leaves
+     the chart containers at zero width and sizeCanvas gives up before ever
+     touching MDPR. The whole intro then ran with MDPR stuck at its initialiser
+     of 1, while fitChart sized the wizard's route canvas with its own local
+     device-pixel-ratio. Backing store 2x, type scale 1x -- so every label on
+     that chart drew at half size on any device with dpr>1, which is every
+     phone and every Retina laptop. Geometry was unaffected, so it looked
+     plausible and merely became unreadable: KBBB and KCCC at about 9 CSS px
+     for a population running to eighty. Assigning first costs nothing, since
+     the value depends only on the display. */
+  MDPR=Math.min(devicePixelRatio||1,2);
   const w=c.parentElement.clientWidth;
   if(!w) return false;
-  MDPR=Math.min(devicePixelRatio||1,2);
   const d=dprCap? Math.min(devicePixelRatio||1,dprCap) : MDPR;
   c.style.height=cssH+"px";
   const nw=Math.round(w*d), nh=Math.round(cssH*d);
