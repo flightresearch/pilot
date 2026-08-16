@@ -3197,7 +3197,7 @@ function buildMapTools(){
 /* Slow radar loop. Observed frames only -- it never runs past the current
    time, because forecast radar is not something the pilot would have. It
    holds longer on the latest frame so the end of the sequence is obvious. */
-let loopTimer=null, loopIdx=0, loopOn=true, loopRAF=null, loopT0=0, loopFrames=null;
+let loopTimer=null, loopOn=true, loopOnce=false, loopRAF=null, loopT0=0, loopFrames=null;
 /* One frame a minute between the observed times, rather than a jump every
    quarter hour. The three reported frames are still the only ones a
    participant can select; the minutes between them are the same advection
@@ -3222,14 +3222,6 @@ function stopLoop(){
   if(loopTimer){clearTimeout(loopTimer);loopTimer=null;}
   if(loopRAF){cancelAnimationFrame(loopRAF);loopRAF=null;}
 }
-function loopTick(){                                  // reduced-motion path
-  const F=stage().radarFrames;
-  radarZulu=F[loopIdx];
-  markTimeBar(); drawMap();
-  const last=loopIdx===F.length-1;
-  loopIdx=(loopIdx+1)%F.length;
-  loopTimer=setTimeout(loopTick, last?1900:900);
-}
 /* Which frame is due is read from the wall clock, so a slow device drops
    frames and still completes the sweep in the same time rather than falling
    progressively further behind. The tick itself is a timer and not
@@ -3239,16 +3231,34 @@ function loopTick(){                                  // reduced-motion path
    mid-sweep. A timer keeps its own time under all of them. */
 function loopStep(){
   const F=loopSeq(), n=F.length, cyc=LOOP_SWEEP+LOOP_HOLD;
-  const p=(performance.now()-loopT0)%cyc;
+  const el=performance.now()-loopT0;
+  if(loopOnce && el>=LOOP_SWEEP){          // single pass: rest on the reported frame
+    if(radarZulu!==F[n-1]){ radarZulu=F[n-1]; drawMap(); }
+    loopOn=false; loopOnce=false; stopLoop(); markTimeBar(); return;
+  }
+  const p=el%cyc;
   const idx = p<LOOP_SWEEP ? Math.min(n-1,Math.floor(p/LOOP_SWEEP*n)) : n-1;
   if(F[idx]!==radarZulu){ radarZulu=F[idx]; markTimeBar(); drawMap(); }
   loopTimer=setTimeout(loopStep,55);       // polls finer than a frame is long
 }
-function startLoop(){
-  stopLoop(); loopOn=true;
-  if(reduceMotion()){ loopIdx=0; loopTick(); return; }   // asked at play, not at load
+/* Pressing play always runs the smooth sweep, and keeps running it: the press
+   is the consent. An earlier build handed anyone reporting reduced motion a
+   coarse three-frame loop instead, which silently withheld the animation --
+   and Windows reports that preference for everybody who has simply switched
+   animation effects off, so it withheld it from a great many people. */
+function startLoop(once){
+  stopLoop(); loopOn=true; loopOnce=!!once;
   loopT0=performance.now(); loopStep();
 }
+/* What plays on arrival. The loop is stimulus, not decoration -- it is where
+   the weather's movement is legible -- so suppressing it entirely for reduced
+   motion would leave those participants deciding from less than everyone else,
+   on a study that calls the stimulus standardized. They get the sweep once and
+   it then rests on the reported 2000Z frame: a single pass of about three and
+   a half seconds that stops on its own, rather than motion running under them
+   for as long as they read. Everyone else keeps the continuous loop, and the
+   play control repeats it for anybody who wants it again. */
+function autoLoop(){ startLoop(reduceMotion()); }
 function markTimeBar(){
   const cur = radarZulu!==null?radarZulu:stage().zulu;
   /* Between observed times the loop sits on a minute no button carries, so the
@@ -3790,7 +3800,7 @@ function enterStage(){
   buildSituation();
   buildTimeBar();buildSiteTabs();
   layoutCanvases();
-  startLoop();
+  autoLoop();
   renderBrief();buildDecision();
   tabEnter=performance.now();
   TEL.log("stage_enter");
