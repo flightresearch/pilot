@@ -135,11 +135,14 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
    clauses now render at one tier. */
 .mL1{font-size:var(--fs-lg);font-weight:700;line-height:1.2;color:#3d2b1c}
 .mL2{font-size:var(--fs-md);color:#5b4a39;line-height:1.3;margin-top:.15rem}
-.mChips{display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));
-  gap:.4rem;margin-top:.55rem}
-.mChip{display:flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e3d8c9;
-  border-radius:9px;padding:.4rem .5rem}
-.mChip .ico{flex:0 0 auto;width:2.8rem;height:2.8rem;color:#6b4a2f}
+/* Ruled statements rather than a disc and a row of bordered chips. A circular
+   icon badge beside a headline, repeated down a page of tinted rounded cards,
+   is the house style of a generated dashboard; briefing paper is set as ruled
+   lines. The two clauses keep the single typographic tier the comment above
+   requires -- only the box around them is gone. */
+.mChips{display:block;margin-top:.55rem}
+.mChip{display:block;background:none;border:0;border-top:1px solid #e0d5c4;
+  border-radius:0;padding:.5rem 0 0}
 .mChip b{display:block;font-size:var(--fs-lg);font-weight:700;line-height:1.2;color:#3d2b1c}
 .mChip span{display:block;font-size:var(--fs-md);color:#5b4a39;line-height:1.3;margin-top:.15rem}
 
@@ -413,8 +416,9 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 #credits{padding:.6rem 1rem 1.2rem;font-size:var(--fs-xs);color:var(--muted);
   text-align:center;line-height:1.4}
 
-#flightHdr{font-size:var(--fs-sm);font-weight:700;color:var(--muted);
-  border-top:2px solid var(--line2);padding-top:.45rem;margin-bottom:.4rem}
+#flightHdr{font-size:var(--fs-xs);font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.14em;
+  border-top:1px solid var(--line2);padding-top:.5rem;margin-bottom:.15rem}
 /* min track must stay under ~7.8rem or an iPhone 8 drops to one column */
 /* Rows, not centred tiles. Seven tiles of equal height whose sub-lines ran
    from "remaining" to a 96-character airspace clause left most of them mostly
@@ -422,19 +426,32 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
    to the tallest. A left-aligned row lets each item be its own height, and
    puts the icons, labels and values on shared vertical lines so the block
    scans as a table instead of a scatter of cards. */
-#sitGrid{display:grid;grid-template-columns:1fr;gap:.4rem}
-@media (min-width:700px){ #sitGrid{grid-template-columns:1fr 1fr} }
-.sitItem{margin:0;display:flex;align-items:flex-start;gap:.6rem;
-  background:#f4f7f9;border:1px solid var(--line);border-radius:12px;
-  padding:.6rem .7rem}
-.sitItem .ico{width:2.1rem;height:2.1rem;flex:0 0 auto;color:var(--blue);margin-top:.15rem}
-.sitItem .sTxt{min-width:0}
+/* Set as a dispatch release, not as a tile grid. Seven tinted rounded boxes,
+   each with an accent icon over an uppercase micro-label over a large value,
+   is the most recognisable signature of generated interface work, and it was
+   the loudest thing on the page. The same seven facts are now a ruled
+   label/value block: the identifiers and figures a pilot reads off paperwork
+   sit in the mono face on a shared left margin, the qualifier runs underneath
+   in prose, and a hairline separates entries. No boxes, no icons, no radii. */
+#sitGrid{display:grid;grid-template-columns:1fr;gap:0}
+@media (min-width:700px){ #sitGrid{grid-template-columns:1fr 1fr;column-gap:1.9rem} }
+/* A fixed label column costs 140px of a 375px screen and leaves the mono value
+   -- "KBBB . Rwy 23, 4,000 ft" -- fighting for the remaining 174. Narrow
+   screens set the label over the value instead, which is also how a narrow
+   printout of the same paperwork reads. */
+@media (max-width:560px){
+  #sitGrid .sitItem{grid-template-columns:minmax(0,1fr);gap:0}
+  #sitGrid .sitItem dt{line-height:1.3;margin-bottom:.1rem}
+}
+.sitItem{margin:0;display:grid;grid-template-columns:7.4rem minmax(0,1fr);
+  gap:0 .85rem;align-items:baseline;padding:.5rem 0;
+  background:none;border:0;border-bottom:1px solid var(--line);border-radius:0}
 .sitItem dt{font-size:var(--fs-xs);font-weight:700;color:var(--muted);
-  text-transform:uppercase;letter-spacing:.06em;line-height:1.2}
-.sitItem dd{margin:.05rem 0 0;font-size:var(--fs-lg);line-height:1.2;
-  font-weight:700;color:var(--ink)}
-.sitItem small{display:block;font-size:var(--fs-sm);color:var(--ink2);
-  line-height:1.3;margin-top:.1rem}
+  text-transform:uppercase;letter-spacing:.1em;line-height:1.5}
+.sitItem dd{margin:0;min-width:0;font-family:var(--mono);font-size:var(--fs-md);
+  font-weight:700;color:var(--ink);line-height:1.35}
+.sitItem small{display:block;font-family:var(--sans);font-weight:400;
+  font-size:var(--fs-sm);color:var(--ink2);line-height:1.4;margin-top:.18rem}
 
 /* ---------------- map ---------------- */
 /* Controls WRAP into a grid: a horizontally scrolling row hides options. */
@@ -1472,6 +1489,17 @@ function fbm2(x,y,o=5){let s=0,a=.5,fx=x,fy=y;
 function terrainFt(x,z){return 950+420*(fbm2(x*.018+11.3,z*.018+7.1)-.5)*2+90*(fbm2(x*.07+3,z*.07+9)-.5)*2;}
 function zuluDiff(a,b){const m=z=>Math.floor(z/100)*60+(z%100);return m(a)-m(b);}
 function shieldCx(z){return SHIELD_X0+SHIELD_SPD*(zuluDiff(z,SHIELD_T0)/60);}
+/* Noise phase for the stratiform and remnant textures. These used the raw HHMM
+   value, which is not a clock: stepping 1959 to 2000 moves it by 41 while a
+   minute of weather moves it by 1, so the mosaic texture jumped roughly forty
+   minutes at the top of the hour. Invisible at fifteen-minute frames, glaring
+   once the loop runs minute by minute. Anchored on 2000Z so the frame the
+   participant actually decides from renders exactly as it did before, and only
+   the earlier loop frames re-phase. */
+function rPhase(z){return 2000+zuluDiff(z,2000);}
+/* HHMM is not arithmetic; go through minutes to step or compare times. */
+const zToMin=z=>Math.floor(z/100)*60+(z%100);
+const minToZ=m=>Math.floor(m/60)*100+(m%60);
 // gentle bow in the leading edge; a large amplitude made the broad stratiform
 // shield read as a serpentine squall line
 function shieldWave(z){return 3.0*Math.sin(z*.018)+2.0*Math.sin(z*.009+1.7);}
@@ -1539,9 +1567,17 @@ const CATC={VFR:"#00a04b",MVFR:"#0d6efd",IFR:"#d40000",LIFR:"#c026d3"};
 
 // Standard NWS base-reflectivity palette. The scenario's rain never reaches
 // the red/magenta end, which is exactly the point of using the real scale.
-const DBZ=[[5,"#04E9E7"],[10,"#019FF4"],[15,"#0300F4"],[20,"#02FD02"],[25,"#01C501"],
-  [30,"#008E00"],[35,"#FDF802"],[40,"#E5BC00"],[45,"#FD9500"],[50,"#FD0000"],
-  [55,"#D40000"],[60,"#BC0000"],[65,"#F800FD"],[70,"#9854C6"]];
+/* Reflectivity ramp in the manner of windy.com rather than the NEXRAD mosaic
+   palette this carried before. The thresholds are unchanged -- only the colour
+   each one is drawn in -- so no echo changes strength, position or extent; a
+   participant reads the same weather in a different set of inks. The NEXRAD
+   ramp steps cyan to blue to dark blue and then jumps to a saturated green,
+   which puts a hard edge inside light rain; Windy runs a softer blue into
+   green, yellow, orange, red and violet, so intensity reads as one continuous
+   climb. Matched by eye against the Windy rain layer, not sampled from it. */
+const DBZ=[[5,"#a8e7f7"],[10,"#6fd3f2"],[15,"#34b3e8"],[20,"#4fd06a"],[25,"#22b84c"],
+  [30,"#0f9636"],[35,"#f2e33c"],[40,"#f7c02e"],[45,"#f79226"],[50,"#ee5a2b"],
+  [55,"#dc2f2f"],[60,"#b31d2c"],[65,"#d64bd6"],[70,"#9b5ad9"]];
 function dbzColor(v){let c=null;for(const [t,col] of DBZ){if(v>=t)c=col;}return c;}
 /* One isolated blob on an otherwise blank mosaic was not what this situation
    looks like on radar. BOTH stations report rain -- KBBB "4 SM in rain and
@@ -1561,8 +1597,9 @@ function dbzColor(v){let c=null;for(const [t,col] of DBZ){if(v>=t)c=col;}return 
    measuring areal coverage: 22% of the area now returns 5 dBZ or more, which
    is what a band of light rain and mist actually paints. */
 function stratAt(x,z,zulu){
-  const t =fbm2(x*.055+zulu*.0025, z*.055);
-  const t2=fbm2(x*.14 -zulu*.004,  z*.14+9.1);
+  const q=rPhase(zulu);
+  const t =fbm2(x*.055+q*.0025, z*.055);
+  const t2=fbm2(x*.14 -q*.004,  z*.14+9.1);
   // thins out well behind the front, where the air has already dried
   const behind=1-Math.min(1,Math.max(0,(x-(shieldCx(zulu)+46))/85));
   return Math.max(0,(0.62*t+0.30*t2-0.30))*behind;
@@ -1592,8 +1629,9 @@ function dbzAt(x,z,zulu){
   /* Two scales of texture, not one. A single low-frequency field produces
      smooth contours no radar ever paints; the finer octave breaks the edges
      into the speckle a real mosaic shows around its 5-15 dBZ margins. */
-  const coarse=fbm2(x*.19+zulu*.004,z*.19);
-  const fine  =fbm2(x*.66-zulu*.007,z*.66+4.3);
+  const q=rPhase(zulu);
+  const coarse=fbm2(x*.19+q*.004,z*.19);
+  const fine  =fbm2(x*.66-q*.007,z*.66+4.3);
   const tex=0.70*coarse+0.30*fine;
   // "Stronger showers" with "no lightning detected" -- so the palette is
   // capped short of the red/magenta convective end on purpose.
@@ -3159,21 +3197,68 @@ function buildMapTools(){
 /* Slow radar loop. Observed frames only -- it never runs past the current
    time, because forecast radar is not something the pilot would have. It
    holds longer on the latest frame so the end of the sequence is obvious. */
-let loopTimer=null, loopIdx=0, loopOn=true;
-function stopLoop(){ if(loopTimer){clearTimeout(loopTimer);loopTimer=null;} }
-function loopTick(){
-  const st=stage(), F=st.radarFrames;
+let loopTimer=null, loopIdx=0, loopOn=true, loopRAF=null, loopT0=0, loopFrames=null;
+/* One frame a minute between the observed times, rather than a jump every
+   quarter hour. The three reported frames are still the only ones a
+   participant can select; the minutes between them are the same advection
+   model sampled more finely, so the loop shows the authored motion instead of
+   three stills of it. Nothing later than 2000Z is generated. */
+function loopSeq(){
+  if(loopFrames) return loopFrames;
+  const F=stage().radarFrames, a=zToMin(F[0]), b=zToMin(F[F.length-1]);
+  loopFrames=[]; for(let m=a;m<=b;m++) loopFrames.push(minToZ(m));
+  return loopFrames;
+}
+const LOOP_SWEEP=3400, LOOP_HOLD=1400;
+/* Vestibular sensitivity is common in this age group, and a continuously
+   animating mosaic is exactly the kind of motion that provokes it. Anyone who
+   has asked their system for reduced motion gets the three observed frames at
+   the old unhurried cadence -- the same weather at the same times, sampled
+   coarsely rather than smoothly. */
+function reduceMotion(){
+  return matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+function stopLoop(){
+  if(loopTimer){clearTimeout(loopTimer);loopTimer=null;}
+  if(loopRAF){cancelAnimationFrame(loopRAF);loopRAF=null;}
+}
+function loopTick(){                                  // reduced-motion path
+  const F=stage().radarFrames;
   radarZulu=F[loopIdx];
   markTimeBar(); drawMap();
-  const last = loopIdx===F.length-1;
+  const last=loopIdx===F.length-1;
   loopIdx=(loopIdx+1)%F.length;
-  loopTimer=setTimeout(loopTick, last?1900:900);    // dwell on the newest frame
+  loopTimer=setTimeout(loopTick, last?1900:900);
 }
-function startLoop(){ stopLoop(); loopIdx=0; loopOn=true; loopTick(); }
+/* Which frame is due is read from the wall clock, so a slow device drops
+   frames and still completes the sweep in the same time rather than falling
+   progressively further behind. The tick itself is a timer and not
+   requestAnimationFrame: rAF is suspended wherever the page is not being
+   painted -- an inactive tab, a throttled embed, a Qualtrics iframe that has
+   scrolled out of view -- and the loop would simply stop there and resume
+   mid-sweep. A timer keeps its own time under all of them. */
+function loopStep(){
+  const F=loopSeq(), n=F.length, cyc=LOOP_SWEEP+LOOP_HOLD;
+  const p=(performance.now()-loopT0)%cyc;
+  const idx = p<LOOP_SWEEP ? Math.min(n-1,Math.floor(p/LOOP_SWEEP*n)) : n-1;
+  if(F[idx]!==radarZulu){ radarZulu=F[idx]; markTimeBar(); drawMap(); }
+  loopTimer=setTimeout(loopStep,55);       // polls finer than a frame is long
+}
+function startLoop(){
+  stopLoop(); loopOn=true;
+  if(reduceMotion()){ loopIdx=0; loopTick(); return; }   // asked at play, not at load
+  loopT0=performance.now(); loopStep();
+}
 function markTimeBar(){
   const cur = radarZulu!==null?radarZulu:stage().zulu;
+  /* Between observed times the loop sits on a minute no button carries, so the
+     bar marks the most recent reported frame at or before it. Without this the
+     whole bar goes dark for most of the sweep and the control reads as broken.
+     The exact minute is stamped on the chart itself. */
+  const obs=stage().radarFrames.filter(f=>zToMin(f)<=zToMin(cur));
+  const act=obs.length?obs[obs.length-1]:stage().radarFrames[0];
   document.querySelectorAll("#timeBtns .tbtn[data-z]").forEach(b=>
-    b.classList.toggle("on", +b.dataset.z===cur));
+    b.classList.toggle("on", +b.dataset.z===act));
   const lp=document.getElementById("loopBtn");
   if(lp){ lp.classList.toggle("on",loopOn); lp.textContent=loopOn?"⏸ Pause loop":"▶ Play loop"; }
 }
@@ -3980,23 +4065,16 @@ function buildSituation(){
   document.getElementById("flightHdr").textContent="The flight";
   mz.innerHTML=
     `<div class="mHero">
-       <span class="mDisc">${svg(MISSION_HERO.icon,"ico hero")}</span>
-       <div><div class="mL1">${esc(MISSION_HERO.line1)}</div>
-            <div class="mL2">${esc(MISSION_HERO.line2)}</div></div>
+       <div class="mL1">${esc(MISSION_HERO.line1)}</div>
+       <div class="mL2">${esc(MISSION_HERO.line2)}</div>
      </div>
      <div class="mChips">${MISSION_CHIPS.map(([ic,a,b])=>
-       `<div class="mChip">${svg(ic,"ico")}<div><b>${esc(a)}</b>${
-         b?`<span>${esc(b)}</span>`:""}</div></div>`).join("")}</div>`;
+       `<div class="mChip"><b>${esc(a)}</b>${
+         b?`<span>${esc(b)}</span>`:""}</div>`).join("")}</div>`;
   document.getElementById("sitGrid").innerHTML=SITUATION
     .map(([ic,lab,val,sub])=>
-      `<dl class="sitItem">
-         ${svg(ic,"ico")}
-         <div class="sTxt">
-           <dt>${esc(lab)}</dt>
-           <dd>${esc(val)}</dd>
-           ${sub?`<small>${esc(sub)}</small>`:""}
-         </div>
-       </dl>`).join("");
+      `<dl class="sitItem"><dt>${esc(lab)}</dt><dd>${esc(val)}${
+         sub?`<small>${esc(sub)}</small>`:""}</dd></dl>`).join("");
 }
 applyDevice();
 buildMapTools();buildLegend();
