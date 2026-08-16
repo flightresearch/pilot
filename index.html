@@ -40,11 +40,23 @@ html{
   -webkit-text-size-adjust:100%;
 }
 :root{
-  --navy:#0f3557; --blue:#15599f; --blue2:#e4eef8;
-  --bg:#eaeef1; --card:#fff; --ink:#101c26; --ink2:#33454f; --muted:#4d5f6d;
-  --line:#c9d3dc; --line2:#9fb0bd;
+  /* PALETTE
+     The old scheme was navy chrome on a cool grey field with a blue accent --
+     and blue is also MVFR. The interface was therefore competing with the data
+     for the same hue, which is both a legibility problem and the main reason
+     the page read as generic.
+     Colour is now reserved for DATA. Chrome is a warm graphite on a paper
+     ground, so the only saturated things on screen are the flight categories,
+     the radar and the response controls. The accent moves to a deep teal,
+     which sits outside the category palette entirely and cannot be mistaken
+     for MVFR at a glance. Category hues are untouched: they are FAA
+     conventions and not ours to restyle. */
+  --navy:#22333f; --blue:#12657a; --blue2:#e2eef1;
+  --bg:#f0efec; --card:#fff; --ink:#141b21; --ink2:#3b4750; --muted:#6a7480;
+  --line:#d8d5cf; --line2:#a9a49b;
   --vfr:#00843d; --mvfr:#0b5ed7; --ifr:#c00000; --lifr:#a21caf;
   --amber:#8f5606;
+  --qink:#1d4a5a;              /* item text: reads as ink, not as chrome */
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --tap:56px;
@@ -349,9 +361,14 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 
 /* ---------------- briefing ---------------- */
 /* Section headings replace the old tab strip. */
-.briefH{font-size:var(--fs-lg);color:var(--navy);margin:.9rem 0 .45rem;
+/* Observations, Forecast and Advisories ran together: .9rem above a heading
+   is not enough to separate three groups that each end in a rule. */
+.briefH{font-size:var(--fs-lg);color:var(--navy);margin:1.9rem 0 .5rem;
   padding-bottom:.25rem;border-bottom:2px solid var(--line)}
 .briefH:first-child{margin-top:0}
+.briefH+.obsRow{border-top:none}
+.briefSec{border-top:2px solid var(--line);margin-top:1.6rem;padding-top:.2rem}
+.briefSec:first-of-type{border-top:none;margin-top:0}
 #briefBody{padding:var(--pad)}
 /* This is the section a pilot actually reads the numbers from, so it carries
    the largest type on the page after the decision itself. Every size here is
@@ -433,6 +450,13 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 }
 
 .rawRow{padding:.35rem .65rem;border-top:1px dashed var(--line);background:#fafcfd}
+/* The coded report now leads the row, so it is set as data rather than as a
+   collapsed detail: monospace, tinted ground, selectable. */
+.rawLead{font-family:var(--mono);font-size:var(--fs-md);font-weight:700;
+  color:var(--ink);background:#f6f4f0;border:1px solid var(--line);
+  border-radius:5px;padding:.4rem .55rem;margin:.15rem 0 .4rem;
+  white-space:pre-wrap;word-break:break-word;overflow-x:auto}
+.obsMain.plain{border-left:3px solid var(--line2);padding-left:.6rem;margin:.1rem 0 .2rem}
 .rawNote{display:block;margin-top:.3rem;font-family:var(--sans);font-size:var(--fs-xs);color:var(--muted)}
 .raw{font-family:var(--mono);font-size:var(--fs-md);line-height:1.55;color:#22323f;
   white-space:pre-wrap;word-break:break-word;margin:.35rem 0 .2rem}
@@ -731,8 +755,11 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
 .qItem + .qItem{border-top:1px solid var(--line)}
 .qItem.miss{background:linear-gradient(90deg,rgba(191,84,32,.07),transparent 60%);
   box-shadow:inset 3px 0 0 #bf5420}
-.qText{font-size:var(--fs-lg);line-height:1.45;color:var(--ink);
-  margin:0 0 .8rem;font-weight:500}
+/* The item is the only thing on the page the participant has to read
+   carefully, so it gets its own ink -- a deep teal-slate that separates it
+   from the numerals, the anchors and the progress chrome without shouting. */
+.qText{font-size:var(--fs-lg);line-height:1.45;color:var(--qink);
+  margin:0 0 .85rem;font-weight:500;letter-spacing:-.005em}
 .qNum{font-family:var(--mono);font-size:var(--fs-xs);color:var(--muted);
   font-weight:700;margin-right:.45rem}
 .qPend{color:#bf5420;font-style:italic;font-weight:600}
@@ -742,14 +769,17 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
    vertically turns one item into a screenful. Cells stay 44px tall so the
    touch target survives even when each is only 36px wide. */
 .qScale{display:flex;gap:.3rem}
-.qOpt{flex:1 1 0;min-width:0;min-height:2.75rem;display:flex;align-items:center;
-  justify-content:center;border:2px solid var(--line2);border-radius:9px;
-  background:#fff;color:var(--ink2);font-weight:700;font-size:var(--fs-md);
+/* Seven heavy 2px boxes per item, thirty items to a scale, competed with the
+   statements they belong to. Hairline outlines on a tinted ground let the
+   question lead; the selected cell is the only strong mark in the row. */
+.qOpt{flex:1 1 0;min-width:0;min-height:2.6rem;display:flex;align-items:center;
+  justify-content:center;border:1px solid var(--line2);border-radius:7px;
+  background:#fbfaf8;color:var(--muted);font-weight:600;font-size:var(--fs-md);
   cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
   transition:background .12s,border-color .12s,color .12s,transform .08s}
-.qOpt:hover{border-color:var(--blue)}
+.qOpt:hover{border-color:var(--blue);color:var(--ink2);background:#fff}
 .qOpt:active{transform:scale(.96)}
-.qOpt.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.qOpt.on{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
 .qOpt:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
 .qAnch{display:flex;justify-content:space-between;gap:.6rem;margin-top:.45rem;
   font-size:var(--fs-xs);color:var(--muted);font-weight:600}
@@ -764,6 +794,13 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
   font-size:var(--fs-lg);font-family:var(--mono);border:2px solid var(--line2);
   border-radius:10px;background:#fff;color:var(--ink)}
 .dIn.bad{border-color:#bf5420;background:#fdf3ee}
+.dSlide{width:100%;max-width:26rem;min-height:var(--tap);margin:.1rem 0 0}
+.dSlideVal{font-family:var(--mono);font-size:var(--fs-xl);font-weight:700;
+  color:var(--ink);line-height:1.1;margin-bottom:.15rem}
+.dSlideVal.empty{font-family:var(--sans);font-size:var(--fs-md);
+  font-weight:600;color:var(--muted)}
+.dEnds{display:flex;justify-content:space-between;max-width:26rem;
+  font-family:var(--mono);font-size:var(--fs-xs);color:var(--muted);font-weight:700}
 .dOpts{display:flex;flex-wrap:wrap;gap:.4rem}
 .dOpt{min-height:var(--tap);padding:.5rem .9rem;border:2px solid var(--line2);
   border-radius:10px;background:#fff;color:var(--ink2);font-size:var(--fs-md);
@@ -2038,7 +2075,16 @@ function drawXSec(){
   g.setTransform(1,0,0,1,0,0);
   // padB carries TWO label rows under the axis now, not one
   const padL=S(40),padR=S(14),padT=S(12),padB=S(52);
-  const pw=W-padL-padR,ph=H-padT-padB,MAX=12000;
+  /* Ceiling of the scale lowered from 12,000 ft. Everything the participant
+     has to judge -- terrain near 1,000, the 2,000 ft cruise line, the deck base
+     falling from about 3,240 to 2,540, and the rain beneath it -- lived in the
+     bottom quarter of a 12,000 ft axis, so the whole decision was squeezed into
+     a few dozen pixels while two thirds of the panel showed empty sky. Deck
+     tops reach roughly 7,000, so 8,000 keeps them on the chart and gives the
+     surface-to-4,000 band half the panel instead of a third. The axis stays
+     linear: a compressed or broken altitude scale on an aviation cross-section
+     would misrepresent the very gap being judged. */
+  const pw=W-padL-padR,ph=H-padT-padB,MAX=8000;
   const X=f=>padL+f*pw, Y=ft=>padT+ph*(1-ft/MAX);
   /* The section now runs from the AEROPLANE to KBBB -- the 45 minutes still to
      fly -- not from a departure airport that version B never names. f=0 is
@@ -2096,7 +2142,8 @@ function drawXSec(){
   g.fillStyle="#a8b58c";g.fill();g.strokeStyle="#77855c";g.lineWidth=S(1.4);g.stroke();
 
   g.font=`600 ${S(10.5)}px ui-monospace,monospace`;g.textAlign="right";g.textBaseline="middle";
-  for(let ft=0;ft<=MAX;ft+=2000){
+  // gridlines every 1,000 now that the band of interest has the room for them
+  for(let ft=0;ft<=MAX;ft+=1000){
     g.strokeStyle="rgba(40,60,80,.14)";g.lineWidth=1;
     g.beginPath();g.moveTo(padL,Y(ft));g.lineTo(padL+pw,Y(ft));g.stroke();
     g.fillStyle="#5a6874";g.fillText(ft?(ft/1000)+"k":"SFC",padL-S(5),Y(ft));
@@ -3025,8 +3072,14 @@ function obsCard(m){
       ${m.dest?'<span class="destTag">DESTINATION</span>':""}
       <span class="sp"></span>
       <span class="ageChip">${m.zulu}Z${m.prior?" · earlier":""}</span>
-      <button class="disc" data-raw="${id}">coded ▾</button></div>
-    <div class="obsMain">
+      <button class="disc" data-raw="${id}">plain ▾</button></div>
+    <!-- The coded report leads. Every participant holds at least a private
+         certificate, so the coded form is the one they were trained on and the
+         one they would actually be handed; the decoded values are the aid, not
+         the primary. Reversing which is behind the toggle also stops the page
+         teaching the answer before the pilot has read the observation. -->
+    <pre class="rawLead">${esc(m.raw)}</pre>
+    <div class="obsMain plain" id="${id}" style="display:none">
       <!-- AGL stated explicitly: the document gives every ceiling as AGL and the
            forecast row already says so. Two rows using different conventions
            for the same quantity is exactly the ambiguity a pilot would catch. -->
@@ -3042,8 +3095,7 @@ function obsCard(m){
          fog, a falling altimeter implies deterioration). But a coded report
          missing its mandatory groups reads as malformed to any pilot who opens
          it, so the label states what it is instead. -->
-    <pre class="raw" id="${id}" style="display:none">${esc(m.raw)}
-<span class="rawNote">Wind, visibility, present weather and sky condition only.</span></pre>
+
   </div>`;
 }
 function renderBrief(){
@@ -3085,7 +3137,7 @@ function renderBrief(){
     el.style.display=open?"block":"none";
     // one source for the wording; the old pair of replace() calls still said
     // "raw" after the button itself had been relabelled "coded report"
-    b.textContent=(open?"coded ▴":"coded ▾");
+    b.textContent=(open?"plain ▴":"plain ▾");
     TEL.log("raw",{id:b.dataset.raw,on:open});
   }));
 }
@@ -3572,9 +3624,14 @@ function layoutCanvases(){
   // PHONE covers all three phone classes; xs must not fall through to desktop
   if(PHONE){ mapH=Math.min(w*1.02, h*0.62); xsH=Math.min(w*0.62, h*0.40); }
   else if(DEV==="small"||DEV==="tablet"){ mapH=Math.min(w*0.62, h*0.55); xsH=Math.min(w*0.40, h*0.36); }
-  else { mapH=Math.min(560, Math.max(320, h*0.48)); xsH=Math.min(340, Math.max(230, h*0.30)); }
+  /* The cross-section carries the whole altitude story -- terrain, the cruise
+     line and the deck closing on it -- in a band only a few thousand feet
+     deep, so it needs height more than the plan chart does. At 230px the gap
+     between cruise and the deck base at KBBB came out at 11 pixels, which is
+     not a gap a participant can read. */
+  else { mapH=Math.min(560, Math.max(320, h*0.48)); xsH=Math.min(430, Math.max(330, h*0.42)); }
   if(short){ mapH=Math.min(mapH, h*0.72); xsH=Math.min(xsH, h*0.55); }
-  mapH=Math.round(Math.max(240, mapH)); xsH=Math.round(Math.max(180, xsH));
+  mapH=Math.round(Math.max(240, mapH)); xsH=Math.round(Math.max(240, xsH));
 
   /* Version B's picture is TALL and NARROW -- 34 NM of flown track behind the
      aeroplane, 67.5 ahead to KBBB, and the alternate only ~32 NM off to the
@@ -3766,7 +3823,7 @@ if(priorStage && !ALLOW_RETAKE){
  *  Regenerate with:  python tools/pack_payload.py tools/items.json <code>
  *  tools/items.json holds the plaintext and lives OUTSIDE the deployed folder.
  * ==================================================================== */
-const PAYLOAD="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";
+const PAYLOAD="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";
 let ITEMS=null;
 
 const KDF={iters:250000, salt:16, iv:12};      // mirrored in pack_payload.py
@@ -3977,6 +4034,21 @@ function svyDemo(p){
       return `<div class="dRow" data-item="${f.id}"><span class="dLbl">${esc2(f.label)}</span>
         <div class="dOpts" role="radiogroup" aria-label="${esc2(f.label)}">${opts}</div></div>`;
     }
+    if(f.type==="slider"){
+      /* No value is shown until the participant moves it, so an untouched
+         slider records nothing rather than silently banking its start
+         position as a real answer. */
+      return `<div class="dRow" data-item="${f.id}">
+        <span class="dLbl">${esc2(f.label)}</span>
+        <div class="dSlideVal ${cur===undefined?"empty":""}" id="dv_${f.id}"
+          >${cur===undefined?"Drag to set":esc2(cur)}</div>
+        <input class="dSlide" id="d_${f.id}" data-id="${f.id}" type="range"
+          min="${f.min}" max="${f.max}" step="1"
+          value="${cur!==undefined?cur:(f.start||Math.round((f.min+f.max)/2))}"
+          aria-label="${esc2(f.label)}"
+          aria-valuetext="${cur!==undefined?cur:"not set"}">
+        <div class="dEnds"><span>${f.min}</span><span>${f.max}+</span></div></div>`;
+    }
     return `<div class="dRow" data-item="${f.id}">
       <label class="dLbl" for="d_${f.id}">${esc2(f.label)}</label>
       <input class="dIn" id="d_${f.id}" data-id="${f.id}" type="text" inputmode="numeric"
@@ -3992,6 +4064,20 @@ function svyWireDemo(p){
     b.parentElement.querySelectorAll(".dOpt").forEach(o=>o.classList.toggle("on",o===b));
     b.closest(".dRow").classList.remove("miss");
   }));
+  host.querySelectorAll(".dSlide").forEach(sl=>{
+    const f=p.spec.fields.find(x=>x.id===sl.dataset.id);
+    const out=document.getElementById("dv_"+f.id);
+    const set=()=>{
+      const v=+sl.value;
+      SVY.ans[f.id]=v;
+      out.textContent=v; out.classList.remove("empty");
+      sl.setAttribute("aria-valuetext",String(v));
+      sl.closest(".dRow").classList.remove("miss");
+    };
+    sl.addEventListener("input",set);
+    // a keyboard user changing it with arrows must count as having set it
+    sl.addEventListener("change",set);
+  });
   host.querySelectorAll(".dIn").forEach(inp=>inp.addEventListener("input",()=>{
     const f=p.spec.fields.find(x=>x.id===inp.dataset.id);
     const raw=inp.value.replace(/[^0-9]/g,"");
