@@ -253,48 +253,71 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 /* No fade above the buttons any more: nothing is clipped behind them now, and
    a gradient over live text would only hide content that is genuinely there. */
 /* ---- informed consent -------------------------------------------------
-   Engrossed rather than decorated. The reference is a founding document: a
-   ruled frame on warm paper, an institutional masthead, a small-caps display
-   title, an ornamented divider, articles set in Roman numerals, a versal
-   opening the first article, and an attestation closing the sheet.
+   A scroll, and scrolled as one. There is no inner scrolling region any more:
+   the sheet runs its full natural length and the page itself is the thing that
+   moves, with a rolled dowel closing each end. The buttons travel with the foot
+   of the document rather than floating over it -- the stronger consent posture
+   in any case, since the participant arrives at AGREE by reading down to it
+   rather than meeting it before the text.
 
    What is deliberately NOT borrowed is the hand. Blackletter or engrossing
-   script would be authentic and unreadable, and this document has to be read
-   by pilots into their eighties before they agree to be bound by it. The
-   classical feeling is carried entirely by proportion, spacing and small caps,
-   so nothing here costs a single point of legibility. */
+   script would be authentic and unreadable, and this document has to be read by
+   pilots into their eighties before they agree to be bound by it. The period
+   feeling is carried by proportion, spacing, small caps and the rolls, so none
+   of it costs legibility. */
 .gatecard.consent{
   --serif:Baskerville,"Hoefler Text","Palatino Linotype",Palatino,Georgia,
     "Times New Roman",serif;
-  --parch:#fdfaf2; --parchLine:#c9bfa8; --parchInk:#2a2115;
-  position:relative;max-width:44rem;display:flex;flex-direction:column;
-  max-height:calc(100vh - 1.6rem);max-height:calc(100dvh - 1.6rem);
-  background:var(--parch);border:1px solid var(--parchLine);border-radius:2px;
-  padding:1.5rem 0 0;box-shadow:0 1px 2px rgba(42,33,21,.10),0 10px 30px -18px rgba(42,33,21,.4)}
-/* The inner rule of an engrossed sheet. Drawn, not imaged, so it costs nothing
-   and stays crisp at any density. */
-.gatecard.consent::before{content:"";position:absolute;inset:7px;
-  border:1px solid var(--parchLine);opacity:.55;pointer-events:none;border-radius:1px}
-.icfMast{flex:0 0 auto;text-align:center;padding:0 2rem}
+  --parch:#fdfaf2; --parchLine:#c9bfa8; --parchInk:#2a2115; --parchEdge:#a4926f;
+  display:block;max-width:42rem;max-height:none;
+  background:transparent;border:0;border-radius:0;box-shadow:none;
+  padding:0;margin:.7rem auto 1.6rem}
+/* The dowels. Drawn as a lit cylinder, with a cap turned at each end. */
+/* The card is a flex item that absorbs any margin it is given, so the only
+   gutter the dowel can overhang into is the gate's own padding. It is widened
+   while the scroll is on screen -- otherwise the turned caps are sliced off
+   flush against the viewport edge on a phone. */
+#gate:has(.gatecard.consent){padding-left:1.35rem;padding-right:1.35rem}
+.icfRoll{position:relative;height:26px;margin:0 -11px;border-radius:13px;z-index:2;
+  background:linear-gradient(180deg,#b09d78 0%,#ddd0b2 15%,#fbf6ea 39%,
+    #f1e7d2 57%,#cdbe9c 82%,#9d8b68 100%);
+  box-shadow:0 2px 7px rgba(42,33,21,.30),inset 0 0 0 1px rgba(122,106,82,.35)}
+.icfRoll::before,.icfRoll::after{content:"";position:absolute;top:50%;
+  width:13px;height:34px;transform:translateY(-50%);border-radius:6px;
+  background:linear-gradient(180deg,#8b7a59,#d5c6a5 35%,#f3ebd9 52%,#b7a582 78%,#7d6d4f);
+  box-shadow:0 1px 4px rgba(42,33,21,.35)}
+.icfRoll::before{left:-9px}
+.icfRoll::after{right:-9px}
+.icfRollTop{margin-bottom:-3px}
+.icfRollBot{margin-top:-3px}
+/* The sheet. The edge gradients read as the slight cylindrical curl of paper
+   that has been kept rolled. */
+.icfSheet{position:relative;background-color:var(--parch);
+  background-image:linear-gradient(90deg,rgba(42,33,21,.085),rgba(42,33,21,0) 28px),
+    linear-gradient(270deg,rgba(42,33,21,.085),rgba(42,33,21,0) 28px);
+  border-left:1px solid var(--parchLine);border-right:1px solid var(--parchLine);
+  box-shadow:0 0 26px -14px rgba(42,33,21,.55);
+  padding:1.7rem 0 1.35rem}
+.icfSheet::before{content:"";position:absolute;inset:11px 15px;
+  border:1px solid var(--parchLine);opacity:.45;pointer-events:none}
+.icfMast{text-align:center;padding:0 2.1rem}
 .icfInst{font-family:var(--serif);font-size:var(--fs-xs);text-transform:uppercase;
   letter-spacing:.22em;font-weight:400;color:#7a6a52;line-height:1.4}
 .gatecard.consent h2{font-family:var(--serif);font-size:var(--fs-xl);font-weight:400;
   font-variant-caps:small-caps;text-transform:lowercase;letter-spacing:.11em;
   text-align:center;color:var(--parchInk);line-height:1.2;
-  margin:.55rem 0 .2rem;padding:0 2rem}
-.icfStudy{flex:0 0 auto;font-family:var(--serif);font-style:italic;font-weight:400;
+  margin:.6rem 0 .2rem;padding:0 2.1rem}
+.icfStudy{font-family:var(--serif);font-style:italic;font-weight:400;
   text-align:center;font-size:var(--fs-md);color:#5e5140;line-height:1.4;
-  padding:0 2rem .5rem}
-/* Rule and lozenge: the whole ornament budget of the page, drawn in CSS. */
-.icfSep{flex:0 0 auto;position:relative;height:0;border:0;
-  border-top:1px solid var(--parchLine);margin:.55rem 2rem 1rem}
+  padding:0 2.1rem .5rem}
+.icfSep{position:relative;height:0;border:0;border-top:1px solid var(--parchLine);
+  margin:.6rem 2.1rem 1.05rem}
 .icfSep::after{content:"";position:absolute;left:50%;top:0;width:7px;height:7px;
   transform:translate(-50%,-50%) rotate(45deg);
   background:var(--parch);border:1px solid var(--parchLine)}
-/* Material terms, ruled like a docket rather than boxed like a web card. */
-.icfFacts{flex:0 0 auto;margin:0 2rem .7rem;border-top:1px solid var(--parchLine);
+.icfFacts{margin:0 2.1rem .8rem;border-top:1px solid var(--parchLine);
   border-bottom:1px solid var(--parchLine);background:transparent}
-.icfFacts>div{display:flex;align-items:baseline;gap:.7rem;padding:.3rem .1rem;
+.icfFacts>div{display:flex;align-items:baseline;gap:.7rem;padding:.32rem .1rem;
   border-bottom:1px solid rgba(201,191,168,.5)}
 .icfFacts>div:last-child{border-bottom:0}
 .icfFacts dt{flex:0 0 8.6rem;font-family:var(--serif);font-size:var(--fs-xs);
@@ -302,30 +325,27 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
   line-height:1.4}
 .icfFacts dd{margin:0;flex:1 1 auto;font-family:var(--serif);font-size:var(--fs-sm);
   font-weight:400;color:var(--parchInk);line-height:1.4}
-.icfBody{padding:0 2rem;flex:1 1 auto;min-height:4rem;overflow-y:auto;
-  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
-  counter-reset:icfclause;border-top:0;border-bottom:1px solid var(--parchLine)}
-/* Articles, numbered as a founding document numbers them. */
+/* No overflow, no max-height: the sheet is as long as the document. */
+.icfBody{padding:0 2.1rem;overflow:visible;max-height:none;
+  counter-reset:icfclause;border:0}
 .icfBody h3{counter-increment:icfclause;font-family:var(--serif);font-size:var(--fs-xs);
   font-weight:400;font-variant-caps:small-caps;text-transform:lowercase;
   letter-spacing:.15em;color:#6b5b45;text-align:center;
-  margin:1.15rem 0 .35rem;line-height:1.4}
+  margin:1.25rem 0 .4rem;line-height:1.4}
 .icfBody h3::before{content:"Article " counter(icfclause,upper-roman) " — "}
-.icfBody h3:first-child{margin-top:.5rem}
-/* Specificity, not preference: `.gatecard p` is declared later at equal weight,
-   so it was silently winning and the document was reading at 1.5 leading. The
-   size it imposes is kept on purpose -- --fs-lg is what satisfies the 20px floor
-   this page promises on a phone -- but a serif at this measure needs the looser
-   line it was never getting. */
+.icfBody h3:first-child{margin-top:.35rem}
+/* Specificity, not preference: .gatecard p is declared later at equal weight, so
+   it was silently winning and the document read at 1.5 leading. The size it
+   imposes is kept on purpose -- --fs-lg is what satisfies the 20px floor this
+   page promises on a phone -- and only the leading is reclaimed. */
 .gatecard.consent .icfBody p{font-family:var(--serif);margin:0 0 .6rem;
   font-size:var(--fs-lg);line-height:1.62;color:#332a1d}
-/* The versal. One letter, on the opening article only -- more would be costume. */
-.gatecard.consent .icfBody h3:first-child + p::first-letter{float:left;font-family:var(--serif);
-  font-size:2.9em;line-height:.86;padding:.06em .1em 0 0;color:var(--parchInk)}
+.gatecard.consent .icfBody h3:first-child + p::first-letter{float:left;
+  font-family:var(--serif);font-size:2.9em;line-height:.86;
+  padding:.06em .1em 0 0;color:var(--parchInk)}
 @media (min-width:620px){
   .gatecard.consent .icfBody p{text-align:justify;hyphens:auto} }
-/* The attestation, ruled above and below in place of a signature block. */
-.icfCert{flex:0 0 auto;margin:.85rem 2rem 0;padding:.6rem .2rem;background:transparent;
+.icfCert{margin:1rem 2.1rem 0;padding:.65rem .2rem;background:transparent;
   border:0;border-top:1px solid var(--parchLine);border-bottom:1px solid var(--parchLine);
   border-radius:0;font-family:var(--serif);font-size:var(--fs-sm) !important;
   line-height:1.55 !important;color:var(--parchInk) !important;font-weight:400;
@@ -336,40 +356,39 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
   font-style:normal}
 .icfMeta{font-family:var(--serif);font-size:var(--fs-xs) !important;
   color:#7a6a52 !important;font-style:italic;text-align:center;
-  padding:.6rem 0 .9rem;margin-top:.8rem !important;border-top:0}
-.icfBtns{flex:0 0 auto;display:flex;gap:.8rem;padding:.95rem 2rem 1.35rem}
+  padding:.7rem 0 0;margin-top:.85rem !important;border-top:0}
+/* At the foot of the scroll, not floating over it. */
+.icfBtns{display:flex;gap:.8rem;padding:1.05rem 2.1rem .3rem;
+  position:static;background:transparent;border:0;box-shadow:none}
 .icfBtns .btn{flex:1;min-height:3.4rem;border-radius:2px;letter-spacing:.14em;
   font-family:var(--serif);font-weight:400;font-variant-caps:small-caps;
   text-transform:lowercase;font-size:var(--fs-lg)}
 .icfBtns .btn.ghost{flex:0 0 38%;background:transparent;color:var(--parchInk);
-  border:1px solid var(--parchLine)}
-/* Short viewports drop the inner scroller entirely: the document flows at
-   natural length and the button row sticks to the bottom of the screen, so the
-   attestation arrives immediately before the buttons and AGREE stays in reach. */
-@media (max-height:740px){
-  .gatecard.consent{display:block;max-height:none}
-  .icfBody{max-height:none;overflow:visible;border-bottom:0}
-  .icfCert{margin-top:.5rem}
-  .icfBtns{position:sticky;bottom:0;background:var(--parch);
-    border-top:1px solid var(--parchLine);padding:.75rem 2rem .9rem;
-    box-shadow:0 -10px 14px -8px rgba(42,33,21,.18)}
-  .icfBtns .btn{min-height:3rem}
-}
-/* Wide enough for two columns, the terms read as a form header and give the
-   prose back most of the height four stacked rows were taking. */
+  border:1px solid var(--parchEdge)}
 @media (min-width:620px){
   .icfFacts{display:grid;grid-template-columns:1fr 1fr}
-  .icfFacts>div{display:block;padding:.42rem .9rem}
+  .icfFacts>div{display:block;padding:.44rem .9rem}
   .icfFacts>div:nth-child(odd){border-right:1px solid rgba(201,191,168,.5)}
   .icfFacts>div:nth-last-child(-n+2){border-bottom:0}
   .icfFacts dt{flex:none;margin-bottom:.12rem}
 }
-/* A phone has no room for engrossed margins; the frame stays, the gutters go. */
+/* A phone has no room for engrossed margins; the rolls stay, the gutters go. */
 @media (max-width:430px){
-  .gatecard.consent{padding-top:1.15rem}
-  .gatecard.consent h2,.icfStudy,.icfMast,.icfBody,.icfBtns{padding-left:1.15rem;
-    padding-right:1.15rem}
-  .icfSep,.icfFacts,.icfCert{margin-left:1.15rem;margin-right:1.15rem}
+  /* The dowel and its turned caps overhang the sheet, and at phone width that
+     overhang ran past the viewport edge and was cut off flush. The card is a
+     flex item whose width absorbs any margin it is given, so the gutter cannot
+     be widened from here; the dowel is scaled down instead, which is what a
+     narrower scroll wants in any case. */
+  .gatecard.consent{max-width:none;margin:.5rem auto 1.2rem}
+  .icfRoll{margin:0 -6px;height:22px;border-radius:11px}
+  .icfRoll::before,.icfRoll::after{width:10px;height:29px;border-radius:5px}
+  .icfRoll::before{left:-5px}
+  .icfRoll::after{right:-5px}
+  .icfSheet{padding-top:1.3rem}
+  .icfSheet::before{inset:8px 10px}
+  .gatecard.consent h2,.icfStudy,.icfMast,.icfBody,.icfBtns{padding-left:1.2rem;
+    padding-right:1.2rem}
+  .icfSep,.icfFacts,.icfCert{margin-left:1.2rem;margin-right:1.2rem}
   .icfFacts dt{flex:0 0 7.2rem}
   .icfBody h3{letter-spacing:.11em}
 }
@@ -3587,6 +3606,8 @@ function showConsent(){
   if(!C){ showWizard(); return; }          // never block the study on a missing block
   gateCard.className="gatecard consent";
   gateCard.innerHTML=`
+    <div class="icfRoll icfRollTop" aria-hidden="true"></div>
+    <div class="icfSheet">
     <div class="icfMast"><div class="icfInst">${esc(C.institution||"")}</div></div>
     <h2>${esc(C.docLabel||C.title)}</h2>
     <div class="icfStudy">${esc(C.study)}</div>
@@ -3602,7 +3623,9 @@ function showConsent(){
     <div class="icfBtns">
       <button class="btn" id="icfYes">${esc(C.agree)}</button>
       <button class="btn ghost" id="icfNo">${esc(C.decline)}</button>
-    </div>`;
+    </div>
+    </div>
+    <div class="icfRoll icfRollBot" aria-hidden="true"></div>`;
   gate.classList.remove("off"); toTop();
   const hd=gateCard.querySelector("h2");
   if(hd){ hd.tabIndex=-1; hd.focus(); }
