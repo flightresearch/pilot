@@ -500,6 +500,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
   padding:.5rem .6rem;border-top:1px solid var(--line);background:#f7f9fb;
   font-size:var(--fs-sm);color:var(--ink2)}
 .legGroup{display:flex;align-items:center;gap:.3rem;flex-wrap:wrap}
+.legRow{flex:1 1 100%}
 .catSw{display:inline-block;padding:.12em .5em;border-radius:5px;color:#fff;
   font-size:var(--fs-xs);font-weight:700;font-family:var(--mono)}
 /* White on the VFR green measures 3.43:1 at this size (16px bold counts as
@@ -3390,7 +3391,10 @@ function markTimeBar(){
   document.querySelectorAll("#timeBtns .tbtn[data-z]").forEach(b=>
     b.classList.toggle("on", +b.dataset.z===act));
   const lp=document.getElementById("loopBtn");
-  if(lp){ lp.classList.toggle("on",loopOn); lp.textContent=loopOn?"⏸ Pause loop":"▶ Play loop"; }
+  /* Words, not glyphs. U+23F8 and U+25B6 render as colour emoji on some phones
+     and as tofu on others, and neither is a control label an older pilot should
+     have to decode. The state is in the word. */
+  if(lp){ lp.classList.toggle("on",loopOn); lp.textContent=loopOn?"Pause loop":"Play loop"; }
 }
 function buildTimeBar(){
   const st=stage(), B=document.getElementById("timeBtns");
@@ -3430,8 +3434,12 @@ function buildLegend(){
   };
   const bins=DBZ.slice(0,9).map(([v,c])=>
     `<i style="background:${swatch(c,v)}"></i>`).join("");
-  L.innerHTML=`<span class="legGroup">Flight category: ${cats}</span>
-    <span class="legGroup">Radar dBZ <span id="dbzScale">${bins}</span>
+  /* The two keys go on their own lines. Wrapped into one row they put the FAA
+     VFR green beside the 20-30 dBZ radar greens -- two different meanings for
+     nearly the same colour, in the exact range this scenario occupies -- and a
+     reader scanning one row has nothing telling them where one key ends. */
+  L.innerHTML=`<span class="legGroup legRow">Flight category: ${cats}</span>
+    <span class="legGroup legRow">Radar dBZ <span id="dbzScale">${bins}</span>
       <span style="font-family:var(--mono)">5 → 45</span></span>`;
 }
 
