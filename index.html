@@ -553,6 +553,10 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 .briefH+.obsRow{border-top:none}
 .briefSec{border-top:2px solid var(--line);margin-top:1.6rem;padding-top:.2rem}
 .briefSec:first-of-type{border-top:none;margin-top:0}
+/* Caption under each profile rather than a heading over it: the eye reads the
+   picture and then wants to know which leg it just read. */
+.xsLeg{font-size:var(--fs-sm);font-weight:700;color:var(--ink2);
+  text-align:center;padding:.15rem 0 .5rem}
 #briefBody{padding:var(--pad)}
 /* This is the section a pilot actually reads the numbers from, so it carries
    the largest type on the page after the decision itself. Every size here is
@@ -1078,9 +1082,16 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
     <div id="briefBody"></div>
   </section>
 
+  <!-- Two sections, both on screen. A toggle would make one of them a choice,
+       and whether a participant digs for the second profile is plausibly a
+       function of the very risk-perception dimensions the study treats as
+       mediators -- which would put exposure on the causal path. -->
   <section class="card" id="secXs">
     <h2>Route cross-section<span class="sp"></span><span class="tag" id="xsTag"></span></h2>
     <div class="canvwrap"><canvas id="xs"></canvas></div>
+    <div class="xsLeg">Continue &mdash; KBBB</div>
+    <div class="canvwrap"><canvas id="xs2"></canvas></div>
+    <div class="xsLeg">Divert &mdash; KCCC</div>
     <div id="xsNote">Cloud base and tops ahead, against your altitude. Heights MSL.</div>
   </section>
 
@@ -1390,6 +1401,14 @@ const MISSION_CHIPS=[
 const SITUATION=[
  ["plane","Aircraft","Single engine","Day VFR only, not equipped for IFR · no autopilot"],
  ["route","Route","135 NM","Rural · flat terrain, no obstacle concerns · approaching KBBB from the west-southwest"],
+ /* En-route airspace, stated because it was not. Without it a participant
+    cannot know which VFR minima apply to the leg they are on, and two pilots
+    reading the same page could be applying different rules -- 1 SM and clear
+    of clouds in Class G against 3 SM and 500 ft below in Class E. It is stated
+    rather than implied: at 2,000 ft MSL over terrain near 1,000 ft the flight
+    is below the 1,200 ft AGL Class E floor for most of the leg, and inside the
+    700 ft transition areas near both fields it is not. */
+ ["route","Airspace","Class G below 1,200 ft AGL","Class E above · both fields carry Class E from 700 ft AGL · at 2,000 ft MSL you are in Class G en route and in Class E near either field"],
  ["runway","Destination","KBBB · Rwy 23, 4,000 ft","Non-towered · AWOS · pattern 1,000 ft AGL · Class G below 700 ft AGL, Class E above"],
  /* The document's clause "the diversion route remains outside the stronger
     shower area" was truncated away here. It existed only as chart geometry --
@@ -1876,6 +1895,12 @@ function drawMap(C,opts){
   const g=C.getContext("2d"),W=C.width,H=C.height,st=stage();
   const zulu = radarZulu!==null?radarZulu:st.zulu;
   const TR=mapTransform(C);
+  /* MV is the TAP map, and only the live chart owns it. Drawing must never read
+     it: a weather-less chart -- the wizard's route panel is one -- would then
+     depend on a weather chart having already run, and at boot none has, because
+     main is hidden and layoutCanvases returns before it draws. That is exactly
+     how the wizard came to stop dead on "Where you are going" with MV null.
+     Every projection below goes through the local TR instead. */
   if(weather) MV=TR;                       // only the live chart is tap-mapped
   const {X,Y,s}=TR;
   g.setTransform(1,0,0,1,0,0);
@@ -1892,7 +1917,7 @@ function drawMap(C,opts){
   g.fillStyle="#eceee8";g.fillRect(0,0,W,H);
   const cell=Math.max(5*MDPR,s*2.4);
   for(let py=0;py<H;py+=cell)for(let px=0;px<W;px+=cell){
-    const w=MV.inv(px,py),h=terrainFt(w.x,w.z);
+    const w=TR.inv(px,py),h=terrainFt(w.x,w.z);
     const t=Math.max(0,Math.min(1,(h-620)/720));
     g.fillStyle=`rgb(${Math.round(235-14*t)},${Math.round(238-12*t)},${Math.round(228-20*t)})`;
     g.fillRect(px,py,cell+1,cell+1);
@@ -1912,7 +1937,7 @@ function drawMap(C,opts){
        fade the low bins for exactly this reason. The DATA is unchanged; only
        the ink is. Verified at 320px: the core still reads first. */
     for(let py=0;py<H;py+=rc)for(let px=0;px<W;px+=rc){
-      const w=MV.inv(px,py), v=dbzAt(w.x,w.z,zulu);
+      const w=TR.inv(px,py), v=dbzAt(w.x,w.z,zulu);
       const col=dbzColor(v); if(!col) continue;
       const t=Math.max(0,Math.min(1,(v-5)/22));      // 5 dBZ -> 0, 27+ -> 1
       g.globalAlpha=0.30+0.42*t;
@@ -2285,8 +2310,16 @@ mapC.addEventListener("click",e=>{
  *  5.  CROSS-SECTION
  * ==================================================================== */
 const xsC=document.getElementById("xs");
-function drawXSec(){
-  const g=xsC.getContext("2d"),W=xsC.width,H=xsC.height,st=stage();
+const xs2C=document.getElementById("xs2");
+/* Both legs get a vertical picture. Only the continue leg had one, so the
+   option the participant is asked to weigh against it was argued entirely in
+   prose while its rival had a chart -- an asymmetry in the evidence for the two
+   choices the primary item is about. The diversion profile is drawn from the
+   same field, by the same code, on the same axis: nothing about it is more
+   flattering than the destination's except what the weather actually does. */
+function drawXSec(C,dest,mins){
+  C=C||xsC; dest=dest||APTS.KBBB; mins=mins||MIN_KBBB;
+  const g=C.getContext("2d"),W=C.width,H=C.height,st=stage();
   g.setTransform(1,0,0,1,0,0);
   // padB carries TWO label rows under the axis now, not one
   const padL=S(40),padR=S(14),padT=S(12),padB=S(52);
@@ -2304,8 +2337,8 @@ function drawXSec(){
   /* The section now runs from the AEROPLANE to KBBB -- the 45 minutes still to
      fly -- not from a departure airport that version B never names. f=0 is
      the cockpit, f=1 is the destination. */
-  const at=f=>({x:AC.x+(APTS.KBBB.x-AC.x)*f, z:AC.z+(APTS.KBBB.z-AC.z)*f});
-  const LEG=D_KBBB;
+  const at=f=>({x:AC.x+(dest.x-AC.x)*f, z:AC.z+(dest.z-AC.z)*f});
+  const LEG=GS*mins/60;
 
   g.fillStyle="#fff";g.fillRect(0,0,W,H);
   const sky=g.createLinearGradient(0,padT,0,padT+ph);
@@ -2406,7 +2439,7 @@ function drawXSec(){
   g.textAlign="center";g.textBaseline="top";
   g.font=`600 ${S(10.5)}px ui-monospace,monospace`;
   for(const mn of [15,30]){
-    const f=mn/MIN_KBBB, x=X(f);
+    const f=mn/mins, x=X(f);
     g.strokeStyle="rgba(40,60,80,.30)";
     g.beginPath();g.moveTo(x,yAx);g.lineTo(x,yAx+S(4));g.stroke();
     g.fillStyle="#5a6874";g.fillText(mn+" min",x,yAx+S(5));
@@ -2417,7 +2450,7 @@ function drawXSec(){
   g.textAlign="left";g.fillStyle="#2a3644";g.fillText("YOU",padL,yEnds);
   // destination gets a mark on the axis as well as a name
   g.textAlign="right";g.fillStyle="#0f3557";
-  g.fillText("KBBB "+MIN_KBBB+" min",padL+pw,yEnds);
+  g.fillText(dest.name+" "+mins+" min",padL+pw,yEnds);
   g.strokeStyle="#0f3557";g.lineWidth=Math.max(1,S(2));
   g.beginPath();g.moveTo(padL+pw,yAx-S(5));g.lineTo(padL+pw,yAx+S(4));g.stroke();
   // The caption is HTML beneath the canvas, not canvas text: gated on DETAIL it
@@ -4042,6 +4075,7 @@ function layoutCanvases(){
   }
   if(!sizeCanvas(mapC,mapH)) return;
   sizeCanvas(xsC,xsH);
+  sizeCanvas(xs2C,xsH);
   /* When a photograph is in place, the canvas takes ITS aspect ratio rather
      than a device fraction. A device-fraction box forced the renderer to crop
      or letterbox whatever did not match; matched to the image, the whole frame
@@ -4069,7 +4103,10 @@ function layoutCanvases(){
   const MAXPX=620000;                       // keeps old phones responsive
   if(cw*ch>MAXPX){ const k=Math.sqrt(MAXPX/(cw*ch)); cw=Math.round(cw*k); ch=Math.round(ch*k); }
   cv.width=cw; cv.height=ch;
-  drawMap();drawXSec();drawOTW();drawCams();
+  drawMap();
+  drawXSec(xsC,APTS.KBBB,MIN_KBBB);
+  drawXSec(xs2C,APTS.KCCC,MIN_KCCC);
+  drawOTW();drawCams();
 }
 let rT=null;
 const relayout=()=>{clearTimeout(rT);rT=setTimeout(layoutCanvases,110);};
