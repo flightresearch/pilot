@@ -129,10 +129,10 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 /* The document states the motive and its cancellation in ONE sentence, giving
    them equal weight. The page used to render the urgency clause at 23px beside
    an 88px hero disc and its counterweight at 16px in the block's faintest
-   colour -- and #missionZone is deliberately on screen while perceived
-   pressure is rated. Dosing one half of the author's own sentence heavier than
-   the other manipulates a measured dependent variable typographically. Both
-   clauses now render at one tier. */
+   colour. Both clauses now render at one tier, on the scenario page and again
+   on the follow-up page where pressure is actually rated: dosing one half of
+   the author's own sentence heavier than the other manipulates a measured
+   dependent variable typographically. */
 .mL1{font-size:var(--fs-lg);font-weight:700;line-height:1.2;color:#3d2b1c}
 .mL2{font-size:var(--fs-md);color:#5b4a39;line-height:1.3;margin-top:.15rem}
 /* Ruled statements rather than a disc and a row of bordered chips. A circular
@@ -140,6 +140,9 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
    is the house style of a generated dashboard; briefing paper is set as ruled
    lines. The two clauses keep the single typographic tier the comment above
    requires -- only the box around them is gone. */
+.fuMission{margin:.2rem 0 .9rem;padding:.6rem .75rem;background:#faf6ef;
+  border:1px solid #e0d5c4;border-radius:9px}
+.fuMission .mChip{border-top-color:#ddd0bb}
 .mChips{display:block;margin-top:.55rem}
 .mChip{display:block;background:none;border:0;border-top:1px solid #e0d5c4;
   border-radius:0;padding:.5rem 0 0}
@@ -382,7 +385,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 .icfBtns .btn{flex:1;min-height:3.4rem;border-radius:2px;letter-spacing:.14em;
   font-family:var(--serif);font-weight:400;font-variant-caps:small-caps;
   text-transform:lowercase;font-size:var(--fs-lg)}
-.icfBtns .btn.ghost{flex:0 0 38%;background:transparent;color:var(--parchInk);
+.icfBtns .btn.ghost{flex:1;background:transparent;color:var(--parchInk);
   border:1px solid var(--parchEdge)}
 /* A phone has no room for engrossed margins; the rolls stay, the gutters go. */
 @media (max-width:430px){
@@ -1022,7 +1025,7 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
 
 <header id="hdr">
   <!-- the <small> must break to its own line; inline it read "DecisionJudgment" -->
-  <div class="t">VFR Weather Decision<small>Judgment scenario</small></div>
+  <div class="t">VFR Weather Scenario<small>Flight situation</small></div>
 
   <div class="sp"></div>
   <!-- No stage pills: there is one measurement, so there is nothing to step through -->
@@ -1236,7 +1239,11 @@ const FT_PER_NM=6076.12, ftNM=ft=>ft/FT_PER_NM;
    specified. At 2,000 the clearance is 540 ft: legal, still visibly tightening
    along the route, and no longer making the decision on the pilot's behalf. */
 const GS=90, CRUISE_FT=2000;
-const CRUISE_TXT=CRUISE_FT.toLocaleString()+" ft";
+/* With the datum stated. "2,000 ft" beside a field at 1,040 ft is ambiguous
+   in the one direction that matters: read as AGL it puts the aeroplane in the
+   cloud, read as MSL it is 960 AGL. The cross-section axis is MSL and says so;
+   the chip now agrees with it. */
+const CRUISE_TXT=CRUISE_FT.toLocaleString()+" ft MSL";
 const TRK_DEG=70, MIN_KBBB=45, MIN_KCCC=50, ROUTE_LEN=135;
 const d2r=d=>d*Math.PI/180;
 const D_KBBB=GS*MIN_KBBB/60, D_KCCC=GS*MIN_KCCC/60;   // 67.5 NM, 75 NM
@@ -3238,6 +3245,14 @@ function stopLoop(){
    scrolled out of view -- and the loop would simply stop there and resume
    mid-sweep. A timer keeps its own time under all of them. */
 function loopStep(){
+  /* Idle while nothing can be seen. The overlay for items 3 and 4 and the
+     survey both hide main, and a backgrounded tab hides everything, but the
+     loop went on drawing a 20 ms frame into a display:none canvas for the rest
+     of the session -- on a phone that is the battery and the heat budget of
+     the whole instrument spent on an invisible chart. */
+  if(document.hidden || !mapC.offsetParent){
+    loopTimer=setTimeout(loopStep,400); return;
+  }
   const F=loopSeq(), n=F.length, cyc=LOOP_SWEEP+LOOP_HOLD;
   const el=performance.now()-loopT0;
   if(loopOnce && el>=LOOP_SWEEP){          // single pass: rest on the reported frame
@@ -3438,6 +3453,7 @@ function makeSlider(key,ids,onChange){
     el.style.backgroundImage=`linear-gradient(90deg,var(--navy) ${p}%,var(--line) ${p}%)`;
   };
   const slide=()=>{
+    R.mode=R.mode||{}; if(!R.mode[key]) R.mode[key]="drag";
     if(R.firstTouchMs[key]===null){
       R.firstTouchMs[key]=Math.round(performance.now()-R.tShown);
       TEL.log("slider_first",{item:key,ms:R.firstTouchMs[key]});}
@@ -3461,7 +3477,12 @@ function makeSlider(key,ids,onChange){
      cannot become a response. Typing and dragging stay in sync both ways. */
   const num=ids.num?document.getElementById(ids.num):null;
   if(num){
-    num.addEventListener("input",()=>{
+    /* Which control produced the answer. The moves counter alone conflates a
+       dragged value with a typed one, and they are not the same response
+       process: a drag is a felt position on a continuum, a typed number is a
+       considered figure. Recorded so the distinction is available rather than
+       inferred. */
+    num.addEventListener("input",()=>{ R.mode=R.mode||{}; R.mode[key]="typed";
       const t=num.value.replace(/[^0-9]/g,"");
       if(t!==num.value) num.value=t;
       if(t===""){ num.classList.remove("bad"); return; }
@@ -3469,8 +3490,16 @@ function makeSlider(key,ids,onChange){
       if(v>=0&&v<=100){ num.classList.remove("bad"); el.value=v; slide(); }
       else num.classList.add("bad");
     });
+    /* Leaving focus reconciles the field with the record. Typing 105 fires
+       input three times -- 1, then 10, then a rejected 105 -- so the value on
+       file was the prefix 10 while the box still read 105, and blur used to
+       clear the error styling as well, removing the only sign anything was
+       wrong. Whatever the box shows after blur is now what is recorded. */
     num.addEventListener("blur",()=>{
-      if(num.value==="" && R[key]!==null) num.value=R[key];
+      const t=num.value.replace(/[^0-9]/g,"");
+      const v=t===""?null:parseInt(t,10);
+      const ok=v!==null&&v>=0&&v<=100;
+      if(!ok) num.value=(R[key]!==null?R[key]:"");
       num.classList.remove("bad");
     });
   }
@@ -3538,7 +3567,7 @@ adv.addEventListener("click",()=>{
     diversion_trigger:(R.act===st.triggerFor)?R.trigger.trim():null,
     perceived_pressure:null,                  // item 3, filled on the next page
     reason:"",                                // item 4, filled on the next page
-    first_touch_ms:R.firstTouchMs, slider_moves:R.moves,
+    first_touch_ms:R.firstTouchMs, slider_moves:R.moves, input_mode:R.mode||{},
     screen_time_ms:Math.round(performance.now()-R.tShown)};
   adv.disabled=true;                 // no second submit from the same page
   TEL.log("submit",{likelihood:R.intent,act:R.act});
@@ -3556,6 +3585,18 @@ function showFollowUp(st){
   gateCard.innerHTML=`
     <h2>Two more questions</h2>
     <div class="lead">Your answer is recorded and cannot be changed.</div>
+    <!-- The mission is restated here because this overlay hides main, and with
+         it the mission block. Item 3 was therefore rating pressure from memory
+         of a stimulus that was no longer on screen, while two comments in this
+         file asserted the opposite. Both clauses are reproduced at one
+         typographic tier, as they are on the scenario page: weighting the
+         motive over its cancellation would bias the very item being asked. -->
+    <div class="fuMission">
+      <div class="mL1">${esc(MISSION_HERO.line1)}</div>
+      <div class="mL2">${esc(MISSION_HERO.line2)}</div>
+      ${MISSION_CHIPS.map(([ic,a,b])=>
+        `<div class="mChip"><b>${esc(a)}</b>${b?`<span>${esc(b)}</span>`:""}</div>`).join("")}
+    </div>
 
     <div class="stepLbl"><i>3</i><span>How much pressure would you feel to reach KBBB on time?</span></div>
     <div class="slbox">
@@ -3839,7 +3880,12 @@ function exportResult(stage){
   RESULT.derived={
     dv_primary:r.destination_likelihood,
     perceived_pressure:r.perceived_pressure,
-    action_consistency:consistency(r.destination_likelihood,r.action)};
+    action_consistency:consistency(r.destination_likelihood,r.action),
+    /* Carried on the bridge as well as into the workbook. A consent record
+       that exists only in the downloaded file is missing from every route the
+       data might actually take out of the browser. */
+    consent_agreed:RESULT.consent?(RESULT.consent.agreed?1:0):"",
+    consent_utc:RESULT.consent?RESULT.consent.at:""};
   /* Called BOUND, and each field wrapped separately. Detaching the method
      (`const Q = Qualtrics.SurveyEngine.setEmbeddedData`) breaks it if the
      implementation touches `this`, and one shared try meant a throw on the
@@ -3868,6 +3914,8 @@ function exportResult(stage){
       put("DV_time_ms",r.screen_time_ms);
       put("DV_moves_likelihood",r.slider_moves.intent);
       put("DV_moves_pressure",r.slider_moves.pressure);
+      put("DV_mode_likelihood",r.input_mode?r.input_mode.intent:"");
+      put("DV_mode_pressure",r.input_mode?r.input_mode.pressure:"");
       /* Cut at an element boundary, not mid-token. A raw .slice() produced
          unparseable JSON with nothing marking that it had been cut. */
       const ev=RESULT.events; let n=ev.length, s=JSON.stringify(ev);
@@ -4071,10 +4119,11 @@ if(window.ResizeObserver){
 /* ==================================================================== *
  * 13.  BOOT
  * ==================================================================== */
-/* One situation, and the mission block stays on screen: with a single
-   measurement there is no second reading for its presence to contaminate, and
-   perceived pressure is now itself an item -- the participant has to be able
-   to see what they are rating pressure against while they rate it. */
+/* One situation, and the mission block stays on screen throughout the
+   scenario. It cannot stay on screen for item 3 -- that item is built into the
+   gate overlay, which hides main -- so showFollowUp restates it there instead.
+   Perceived pressure is itself an item, and the participant has to be able to
+   see what they are rating pressure against while they rate it. */
 function buildSituation(){
   const mz=document.getElementById("missionZone");
   document.getElementById("flightHdr").textContent="The flight";
@@ -4648,6 +4697,10 @@ function buildXlsx(){
   put("run_id",RESULT.run_id); put("completed_utc",new Date().toISOString());
   put("DV_likelihood",r.destination_likelihood); put("DV_action",r.action);
   put("DV_action_text",r.action_text); put("DV_trigger",r.diversion_trigger);
+  /* The consent record was captured and then dropped at export. On an
+     IRB-governed study it is the one audit field that cannot be missing. */
+  put("consent_agreed",RESULT.consent?(RESULT.consent.agreed?1:0):"");
+  put("consent_utc",RESULT.consent?RESULT.consent.at:"");
   put("DV_pressure",r.perceived_pressure); put("DV_reason",r.reason);
   for(const key of ["tarps","teique"]){
     const S=ITEMS[key]; if(!S) continue;
@@ -4693,6 +4746,11 @@ function buildXlsx(){
     if(sc.sub[key+"_global"]!==undefined) add("— overall mean",sc.sub[key+"_global"]);
   }
   if(ITEMS.demographics){
+    if(RESULT.consent){
+      rows.push([],[T("Consent")]);
+      add("Agreed to take part",RESULT.consent.agreed?"Yes":"No");
+      add("Recorded at (UTC)",RESULT.consent.at);
+    }
     rows.push([],[T("Background")]);
     ITEMS.demographics.fields.forEach(f=>{
       add(f.label,SVY.ans[f.id]);
