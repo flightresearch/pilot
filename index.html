@@ -1523,7 +1523,27 @@ function vnoise(x,y){const ix=Math.floor(x),iy=Math.floor(y);let fx=x-ix,fy=y-iy
   return (a*(1-fx)+b*fx)*(1-fy)+(c*(1-fx)+d*fx)*fy;}
 function fbm2(x,y,o=5){let s=0,a=.5,fx=x,fy=y;
   for(let i=0;i<o;i++){s+=a*vnoise(fx,fy);fx*=2.03;fy*=2.01;a*=.5;}return s;}
-function terrainFt(x,z){return 950+420*(fbm2(x*.018+11.3,z*.018+7.1)-.5)*2+90*(fbm2(x*.07+3,z*.07+9)-.5)*2;}
+function terrRaw(x,z){return 950+420*(fbm2(x*.018+11.3,z*.018+7.1)-.5)*2+90*(fbm2(x*.07+3,z*.07+9)-.5)*2;}
+/* The ground is pulled onto each field's published elevation. The procedural
+   surface put KBBB at 996 ft against a published 1,040 and KCCC at 1,033
+   against 1,010, and every cloud base is drawn as terrain plus the reported
+   ceiling -- so the destination's deck came out at 2,498 ft MSL where OVC015
+   over a 1,040 ft field means 2,540. Against a 2,000 ft cruise that is 498 ft
+   of clearance on the chart and 540 from the report, either side of the 500 ft
+   rule: the picture and the METAR disagreed about whether the flight was legal.
+   A Gaussian correction per field, 6 NM wide, makes the surface exact at each
+   airport and fades to nothing between them. The ceiling interpolation was
+   never the problem -- it lands within 2 ft of both reports. */
+const TERR_R=6;
+const TERR_FIX=Object.values(APTS).map(a=>({x:a.x,z:a.z,dh:a.elev-terrRaw(a.x,a.z)}));
+function terrainFt(x,z){
+  let h=terrRaw(x,z);
+  for(const f of TERR_FIX){
+    const q=((x-f.x)*(x-f.x)+(z-f.z)*(z-f.z))/(TERR_R*TERR_R);
+    h+=f.dh*Math.exp(-q);
+  }
+  return h;
+}
 function zuluDiff(a,b){const m=z=>Math.floor(z/100)*60+(z%100);return m(a)-m(b);}
 function shieldCx(z){return SHIELD_X0+SHIELD_SPD*(zuluDiff(z,SHIELD_T0)/60);}
 /* Noise phase for the stratiform and remnant textures. These used the raw HHMM
@@ -2509,8 +2529,13 @@ float shield(vec2 p){
  float dz=(p.y-${APTS.KBBB.z.toFixed(2)})/${SHIELD_ALONG.toFixed(1)};
  return exp(-d*d)*exp(-dz*dz*dz*dz)*(1.0-uClear);}
 float terrFt(vec2 p){
- return 950.0+420.0*(fbm2f(p*0.018+vec2(11.3,7.1))-0.5)*2.0
-            + 90.0*(fbm2f(p*0.07 +vec2(3.0,9.0))-0.5)*2.0;}`;
+ float h=950.0+420.0*(fbm2f(p*0.018+vec2(11.3,7.1))-0.5)*2.0
+              + 90.0*(fbm2f(p*0.07 +vec2(3.0,9.0))-0.5)*2.0;
+ /* Same field-elevation correction as the 2D terrainFt, with the offsets
+    injected from it. A copy that drifts puts the rendered ground and the
+    plotted section on different terrain. */
+${TERR_FIX.map(f=>` h+=${f.dh.toFixed(2)}*exp(-dot(p-vec2(${f.x.toFixed(2)},${f.z.toFixed(2)}),p-vec2(${f.x.toFixed(2)},${f.z.toFixed(2)}))/${(TERR_R*TERR_R).toFixed(1)});`).join(String.fromCharCode(10))}
+ return h;}`;
 const FTNM=(1/FT_PER_NM).toFixed(9);
 
 const SH={
