@@ -72,6 +72,9 @@ html{
   --amber:#8f5606;
   --qink:#1d4a5a;              /* item text: reads as ink, not as chrome */
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
+  /* Figures share one advance width, so altitudes and times stack in a column
+     instead of shimmying line to line. */
+  --num:tabular-nums;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --tap:56px;
   /* The header above promises body text never below 20px. --fs-xs and --fs-sm
@@ -81,6 +84,11 @@ html{
    nothing on this page renders scenario text below the stated floor. */
 --fs-xs:1rem; --fs-sm:1rem; --fs-md:1rem; --fs-lg:1.15rem; --fs-xl:1.45rem;
   --pad:.65rem;
+  /* One rhythm. Radii were running at 2, 4, 5, 6, 7, 9, 10, 12 and 14px with no
+     system behind the choice, which is the sort of drift that makes a page read
+     as assembled rather than designed. Three steps now: panels, controls, and
+     the small marks. */
+  --r-panel:10px; --r-ctl:8px; --r-chip:4px;
 }
 @media (pointer:coarse){ :root{ --tap:60px; } }
 *{box-sizing:border-box}
@@ -107,10 +115,10 @@ h1,h2,h3,h4{margin:0;font-weight:700;letter-spacing:-.01em}
    realism without making the layout itself a T1/T2 difference. */
 #strip{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:.3rem .5rem;margin-top:.35rem}
 #strip span{font-family:var(--mono);font-size:var(--fs-sm);font-weight:700;
-  background:rgba(255,255,255,.16);padding:.12em .5em;border-radius:6px;white-space:nowrap}
+  background:rgba(255,255,255,.16);padding:.12em .5em;border-radius:var(--r-ctl);white-space:nowrap}
 #strip span.now{background:#fff;color:var(--navy)}
 .ageChip{font-family:var(--mono);font-size:var(--fs-xs);font-weight:700;color:var(--ink2);
-  background:#e8edf2;border:1px solid var(--line);padding:.1em .45em;border-radius:5px}
+  background:#e8edf2;border:1px solid var(--line);padding:.1em .45em;border-radius:var(--r-chip)}
 #steps{display:flex;gap:.3rem}
 .step{font-size:var(--fs-xs);letter-spacing:.02em;padding:.25em .6em;border-radius:999px;
   border:2px solid rgba(255,255,255,.35);opacity:.65;font-weight:600}
@@ -118,7 +126,7 @@ h1,h2,h3,h4{margin:0;font-weight:700;letter-spacing:-.01em}
 
 /* ---------------- layout ---------------- */
 main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000px;margin:0 auto}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-panel);overflow:hidden}
 /* Section headings, not filled title bars. Seven navy blocks over rounded white
    boxes is the card-deck pattern this file's own comments keep rejecting, and it
    was the loudest generic thing left on the page: it made every section shout at
@@ -131,7 +139,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
   padding:.7rem .8rem .45rem;border-bottom:1px solid var(--line2)}
 .card > h2 .sp{flex:1}
 .card > h2 .tag{font-size:var(--fs-xs);background:var(--blue2);color:var(--navy);
-  border-radius:6px;padding:.12em .5em;font-weight:600}
+  border-radius:var(--r-ctl);padding:.12em .5em;font-weight:600}
 .body{padding:var(--pad)}
 
 .canvwrap{position:relative;width:100%;background:#dfe5e9}
@@ -142,7 +150,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
    used amber, which on this page is weather-hazard language -- the social
    reason for the trip must not be styled as a caution. */
 .ico{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-#missionZone{background:#faf6f0;border:1px solid #ddd2c4;border-radius:10px;
+#missionZone{background:#faf6f0;border:1px solid #ddd2c4;border-radius:var(--r-panel);
   padding:.6rem .65rem;margin-bottom:.55rem}
 .mHero{display:flex;align-items:center;gap:.65rem}
 .mDisc{flex:0 0 auto;width:4.4rem;height:4.4rem;border-radius:50%;background:#f0e6d8;
@@ -163,7 +171,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
    lines. The two clauses keep the single typographic tier the comment above
    requires -- only the box around them is gone. */
 .fuMission{margin:.2rem 0 .9rem;padding:.6rem .75rem;background:#faf6ef;
-  border:1px solid #e0d5c4;border-radius:9px}
+  border:1px solid #e0d5c4;border-radius:var(--r-ctl)}
 .fuMission .mChip{border-top-color:#ddd0bb}
 .mChips{display:block;margin-top:.55rem}
 .mChip{display:block;background:none;border:0;border-top:1px solid #e0d5c4;
@@ -230,7 +238,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 .wzFacts{display:grid;gap:.5rem;margin-top:.3rem}
 .wzFact{display:flex;align-items:center;gap:.6rem;
   background:linear-gradient(180deg,#fffdf9,#f7efe3);
-  border:1px solid #e0d3c0;border-radius:12px;padding:.5rem .6rem;
+  border:1px solid #e0d3c0;border-radius:var(--r-panel);padding:.5rem .6rem;
   box-shadow:0 1px 2px rgba(107,74,47,.08)}
 .wzFact .ico{flex:0 0 auto;width:2.1rem;height:2.1rem;color:#6b4a2f;
   background:#fff;border:1px solid #e6dbc9;border-radius:50%;padding:.3rem}
@@ -267,10 +275,10 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 .wzTiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(20rem,100%),1fr));
   gap:.55rem;padding:.8rem;background:#f4f7f9}
 .wzTile{display:flex;align-items:center;gap:.75rem;background:#fff;
-  border:1px solid var(--line);border-radius:12px;padding:.7rem .8rem;
+  border:1px solid var(--line);border-radius:var(--r-panel);padding:.7rem .8rem;
   box-shadow:0 1px 2px rgba(16,28,38,.06)}
 .wzTile .ico{flex:0 0 auto;width:3.4rem;height:3.4rem;color:var(--navy);
-  background:#eef3f8;border-radius:12px;padding:.55rem;stroke-width:1.9}
+  background:#eef3f8;border-radius:var(--r-panel);padding:.55rem;stroke-width:1.9}
 .wzTile .tx{min-width:0}
 .wzTile .lb{display:block;font-size:var(--fs-sm);font-weight:700;color:var(--muted);
   text-transform:uppercase;letter-spacing:.04em;line-height:1.2}
@@ -312,7 +320,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
   box-shadow:0 3px 9px rgba(42,33,21,.34),inset 0 0 0 1px rgba(122,106,82,.38)}
 /* The turned caps at each end of the rod. */
 .icfRoll::before,.icfRoll::after{content:"";position:absolute;top:50%;
-  width:18px;height:47px;transform:translateY(-50%);border-radius:9px;
+  width:18px;height:47px;transform:translateY(-50%);border-radius:var(--r-ctl);
   background:linear-gradient(180deg,#7f6e4e,#d2c2a0 33%,#f5eddb 51%,#b19e79 76%,#70603f);
   box-shadow:0 2px 5px rgba(42,33,21,.38)}
 .icfRoll::before{left:-12px}
@@ -418,7 +426,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
      narrower scroll wants in any case. */
   .gatecard.consent{max-width:none;margin:.5rem auto 1.2rem}
   .icfRoll{margin:0 -9px;height:29px;border-radius:15px}
-  .icfRoll::before,.icfRoll::after{width:13px;height:38px;border-radius:7px}
+  .icfRoll::before,.icfRoll::after{width:13px;height:38px;border-radius:var(--r-ctl)}
   .icfRoll::before{left:-8px}
   .icfRoll::after{right:-8px}
   .icfThr{width:12px;height:24px;background-size:1px 21px,1px 14px,1px 18px;
@@ -474,7 +482,8 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 .sitItem dt{font-size:var(--fs-xs);font-weight:700;color:var(--muted);
   text-transform:uppercase;letter-spacing:.1em;line-height:1.5}
 .sitItem dd{margin:0;min-width:0;font-family:var(--mono);font-size:var(--fs-md);
-  font-weight:700;color:var(--ink);line-height:1.35}
+  font-weight:700;color:var(--ink);line-height:1.35;
+  font-variant-numeric:var(--num);font-feature-settings:"tnum" 1}
 .sitItem small{display:block;font-family:var(--sans);font-weight:400;
   font-size:var(--fs-sm);color:var(--ink2);line-height:1.4;margin-top:.18rem}
 
@@ -483,7 +492,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 #mapTools{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.4rem;
   padding:.5rem .6rem;border-bottom:1px solid var(--line);background:#f7f9fb}
 .chip{display:flex;align-items:center;justify-content:center;gap:.3rem;
-  min-height:var(--tap);padding:.3rem .6rem;border-radius:10px;border:2px solid var(--line2);
+  min-height:var(--tap);padding:.3rem .6rem;border-radius:var(--r-panel);border:2px solid var(--line2);
   background:#fff;color:var(--ink2);font-size:var(--fs-sm);font-weight:600;cursor:pointer;
   user-select:none;text-align:center;line-height:1.2}
 .chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
@@ -491,7 +500,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 #timebar{background:#f7f9fb;border-top:1px solid var(--line);padding:.45rem .6rem}
 #timebar .lab{font-size:var(--fs-xs);color:var(--muted);margin-bottom:.3rem;font-weight:700}
 #timeBtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(7rem,1fr));gap:.35rem}
-.tbtn{min-height:var(--tap);border:2px solid var(--line2);background:#fff;border-radius:10px;
+.tbtn{min-height:var(--tap);border:2px solid var(--line2);background:#fff;border-radius:var(--r-panel);
   font-family:var(--mono);font-size:var(--fs-sm);font-weight:600;color:var(--ink2);cursor:pointer}
 .tbtn.on{background:var(--navy);border-color:var(--navy);color:#fff}
 .tbtn.future{opacity:.4;cursor:not-allowed}
@@ -501,7 +510,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
   font-size:var(--fs-sm);color:var(--ink2)}
 .legGroup{display:flex;align-items:center;gap:.3rem;flex-wrap:wrap}
 .legRow{flex:1 1 100%}
-.catSw{display:inline-block;padding:.12em .5em;border-radius:5px;color:#fff;
+.catSw{display:inline-block;padding:.12em .5em;border-radius:var(--r-chip);color:#fff;
   font-size:var(--fs-xs);font-weight:700;font-family:var(--mono)}
 /* White on the VFR green measures 3.43:1 at this size (16px bold counts as
    normal text, so AA wants 4.5:1). Black on the same green is 6.13:1, which
@@ -516,14 +525,14 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 #siteTabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.4rem;
   padding:.5rem .6rem;border-bottom:1px solid var(--line);background:#f7f9fb}
 .siteTab{min-height:var(--tap);display:flex;align-items:center;justify-content:center;gap:.4rem;
-  padding:.3rem .5rem;border:2px solid var(--line2);border-radius:10px;background:#fff;
+  padding:.3rem .5rem;border:2px solid var(--line2);border-radius:var(--r-panel);background:#fff;
   cursor:pointer;font-size:var(--fs-md);font-weight:700;line-height:1.15;text-align:left}
 .siteTab.on{border-color:var(--navy);background:var(--navy);color:#fff}
 .siteTab .cd{width:1rem;height:1rem;border-radius:50%;flex:0 0 auto;border:2px solid rgba(255,255,255,.7)}
 .siteTab .sub{display:block;font-size:var(--fs-xs);opacity:.8;font-weight:500}
 
 #camGrid{display:grid;gap:.55rem;padding:var(--pad)}
-.camCard{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#0d1319}
+.camCard{border:1px solid var(--line);border-radius:var(--r-panel);overflow:hidden;background:#0d1319}
 .camHead{display:flex;align-items:baseline;gap:.4rem;padding:.4rem .6rem;
   background:#16212c;color:#e8eff5;font-size:var(--fs-sm)}
 .camHead b{font-size:var(--fs-md)}
@@ -569,7 +578,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
    like loose remainder, so all three groups take the same frame -- the border
    is a hairline on a barely-tinted ground, carrying the grouping without
    turning the briefing back into a deck of cards. */
-.briefGrp{min-width:0;border:1px solid var(--line);border-radius:10px;
+.briefGrp{min-width:0;border:1px solid var(--line);border-radius:var(--r-panel);
   background:#fbfaf8;padding:.55rem .8rem .7rem}
 .briefGrp>.briefH{margin-top:0}
 /* The METAR box leads with the coded report and the TAF box never shows one,
@@ -618,7 +627,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
   padding:.08em .4em;border-radius:3px;letter-spacing:.03em}
 .destTag{font-size:var(--fs-xs);font-weight:700;letter-spacing:.04em;color:var(--navy)}
 .catBadge{font-family:var(--mono);font-size:var(--fs-xs);font-weight:700;color:#fff;
-  padding:.12em .55em;border-radius:5px}
+  padding:.12em .55em;border-radius:var(--r-chip)}
 /* Wider columns: at this type size a 7.5rem track wrapped "220° 12G18" */
 /* inline label/value pairs that wrap; replaces the old auto-fit grid of blocks */
 .obsMain{display:flex;flex-wrap:wrap;gap:.15rem 1.15rem;align-items:baseline}
@@ -672,7 +681,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
    collapsed detail: monospace, tinted ground, selectable. */
 .rawLead{font-family:var(--mono);font-size:var(--fs-md);font-weight:700;
   color:var(--ink);background:#f6f4f0;border:1px solid var(--line);
-  border-radius:5px;padding:.4rem .55rem;margin:.15rem 0 .4rem;
+  border-radius:var(--r-chip);padding:.4rem .55rem;margin:.15rem 0 .4rem;
   white-space:pre-wrap;word-break:break-word;overflow-x:auto}
 .obsMain.plain{border-left:3px solid var(--line2);padding-left:.6rem;margin:.1rem 0 .2rem}
 .rawNote{display:block;margin-top:.3rem;font-family:var(--sans);font-size:var(--fs-xs);color:var(--muted)}
@@ -684,7 +693,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
    with a comfortable but not enormous target instead. */
 .disc{border:0;background:none;color:var(--blue);font-size:var(--fs-xs);cursor:pointer;
   padding:.2rem .45rem;min-height:1.75rem;font-weight:700;font-family:var(--mono);
-  border:1px solid var(--line2);border-radius:5px;-webkit-tap-highlight-color:transparent}
+  border:1px solid var(--line2);border-radius:var(--r-chip);-webkit-tap-highlight-color:transparent}
 .disc:hover{border-color:var(--blue)}
 .disc:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 /* advisories: a labelled paragraph under a rule, not a bordered callout. The
@@ -710,7 +719,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
   font-size:var(--fs-sm);flex:0 0 auto}
 .choices{display:grid;gap:.45rem}
 .choice{display:flex;align-items:center;gap:.6rem;min-height:var(--tap);
-  padding:.6rem .65rem;border:2px solid var(--line2);border-radius:10px;background:#fff;
+  padding:.6rem .65rem;border:2px solid var(--line2);border-radius:var(--r-panel);background:#fff;
   cursor:pointer;font-size:var(--fs-md);line-height:1.3}
 .choice.sel{border-color:var(--navy);background:var(--blue2);font-weight:700;border-width:3px}
 .choice input{accent-color:var(--navy);width:1.5rem;height:1.5rem;flex:0 0 auto}
@@ -718,7 +727,7 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 /* Warm paper, like every other ground on the page. This box was cool blue-grey
    while the cards around it were warm, so the decision card read as a different
    material from the briefing it belongs to. */
-.slbox{background:#faf9f6;border:2px solid var(--line);border-radius:10px;
+.slbox{background:#faf9f6;border:2px solid var(--line);border-radius:var(--r-panel);
   padding:.65rem;margin:.9rem 0 .2rem}
 /* BOTH readouts, not just the first. #prVal was styled by nothing at all, so
    the two 0-100 items rendered as visibly different controls: the likelihood
@@ -764,7 +773,7 @@ input[type=range].untouched:focus-visible::-moz-range-thumb{opacity:.45}
   margin-bottom:.15rem}
 .numIn{width:100%;max-width:7rem;min-height:var(--tap);text-align:center;
   font-family:var(--mono);font-size:var(--fs-xl);font-weight:700;color:var(--navy);
-  border:2px solid var(--line2);border-radius:10px;padding:.2rem}
+  border:2px solid var(--line2);border-radius:var(--r-panel);padding:.2rem}
 .numIn.bad{border-color:var(--err)}
 .slStep{flex:0 0 auto;width:var(--tap);height:var(--tap);border-radius:50%;
   border:2px solid var(--navy);background:#fff;color:var(--navy);
@@ -781,7 +790,7 @@ input[type=range].untouched:focus-visible::-moz-range-thumb{opacity:.45}
 .slends .mid{text-align:center}
 .slends .end{text-align:right}
 textarea#why{width:100%;min-height:6rem;resize:vertical;background:#fff;
-  border:2px solid var(--line2);border-radius:10px;padding:.55rem .65rem;
+  border:2px solid var(--line2);border-radius:var(--r-panel);padding:.55rem .65rem;
   font-size:var(--fs-md);line-height:1.5;margin-top:.35rem}
 .cnt{font-size:var(--fs-sm);color:var(--muted);text-align:right}
 /* ---- version B additions ---- */
@@ -793,7 +802,7 @@ textarea#why{width:100%;min-height:6rem;resize:vertical;background:#fff;
   margin:.7rem 0 .1rem;color:var(--ink)}
 #trigwrap{padding:.2rem 0 .1rem}
 textarea#trig,textarea#why{width:100%;min-height:5.5rem;resize:vertical;background:#fff;
-  border:2px solid var(--line2);border-radius:10px;padding:.55rem .65rem;
+  border:2px solid var(--line2);border-radius:var(--r-panel);padding:.55rem .65rem;
   font-size:var(--fs-lg);line-height:1.5;margin-top:.35rem}
 .stepLbl .opt{font-style:normal;font-weight:600;font-size:var(--fs-sm);
   color:var(--muted);margin-left:.4rem}
@@ -804,7 +813,7 @@ textarea#trig,textarea#why{width:100%;min-height:5.5rem;resize:vertical;backgrou
 .gatecard .btn:disabled{background:#b7c2cc;color:#5d6b76;cursor:not-allowed}
 #whymsg{font-size:var(--fs-sm);color:var(--muted);text-align:center;margin-top:.45rem;
   min-height:1.3rem;font-weight:600}
-#advance{width:100%;margin-top:.8rem;min-height:4rem;border:0;border-radius:12px;
+#advance{width:100%;margin-top:.8rem;min-height:4rem;border:0;border-radius:var(--r-panel);
   cursor:pointer;background:var(--navy);color:#fff;font-size:var(--fs-lg);font-weight:700}
 #advance:disabled{background:#b7c2cc;color:#5d6b76;cursor:not-allowed}
 #advmsg{font-size:var(--fs-sm);color:var(--muted);text-align:center;margin-top:.45rem;
@@ -834,7 +843,7 @@ body:has(#svy:not(.off)) #glHost,
 body:has(#svy:not(.off)) main{display:none}
 /* margin:auto centres the card when it fits and lets it start at the top when
    it does not — align-items:center would crop the head off a tall card. */
-.gatecard{max-width:46rem;width:100%;margin:auto;background:#fff;border-radius:14px;
+.gatecard{max-width:46rem;width:100%;margin:auto;background:#fff;border-radius:var(--r-panel);
   padding:1rem;font-size:var(--fs-lg)}
 .gatecard h2{font-size:var(--fs-xl);margin-bottom:.35rem;color:var(--navy);line-height:1.2}
 .gatecard .lead{color:var(--ink2);font-size:var(--fs-lg);margin-bottom:.7rem}
@@ -842,15 +851,15 @@ body:has(#svy:not(.off)) main{display:none}
 .gatecard ul{font-size:var(--fs-lg);margin:0 0 .7rem;padding-left:1.3rem}
 .gatecard li{margin-bottom:.45rem;line-height:1.45}
 .gatecard .btn{width:100%;min-height:4rem;background:var(--navy);color:#fff;border:0;
-  border-radius:12px;font-size:var(--fs-xl);font-weight:700;cursor:pointer;margin-top:.3rem}
-.gbox{background:#f4f7f9;border:2px solid var(--line);border-radius:10px;
+  border-radius:var(--r-panel);font-size:var(--fs-xl);font-weight:700;cursor:pointer;margin-top:.3rem}
+.gbox{background:#f4f7f9;border:2px solid var(--line);border-radius:var(--r-panel);
   padding:.7rem .8rem;margin-bottom:.7rem}
 .gateArt{display:block;width:100%;height:auto;border:1px solid var(--line);
-  border-radius:10px;margin-bottom:.6rem}
+  border-radius:var(--r-panel);margin-bottom:.6rem}
 .gateChips{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.8rem}
 .gateChips span{font-family:var(--mono);font-size:var(--fs-sm);font-weight:700;
   background:#eef2f6;border:1px solid var(--line);color:var(--ink);
-  padding:.18em .55em;border-radius:6px}
+  padding:.18em .55em;border-radius:var(--r-ctl)}
 .gateH3{font-size:var(--fs-md);color:var(--muted);margin-bottom:.35rem}
 .gateList{margin:0 0 .9rem;padding-left:1.2rem;font-size:var(--fs-lg)}
 .gateList li{margin-bottom:.4rem;line-height:1.4}
@@ -907,10 +916,14 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
 @media (min-width:1100px){
   .wzTop,.wzArt,.wzBody,.wzNav{max-width:46rem;margin-inline:auto;width:100%}
   .wzImg,.wzCanvas{max-height:none}
-  .wzArt{border-radius:12px;overflow:hidden}
+  .wzArt{border-radius:var(--r-panel);overflow:hidden}
 }
 @media (min-width:1100px){
-  main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  /* A briefing does not get more readable by getting wider. Past about
+     1500px the two columns were simply stretching, which is how a page starts
+     looking like a template rather than a document. */
+  main{max-width:1500px;margin-left:auto;margin-right:auto;
+    display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
     align-items:start;gap:.75rem}
   #secSit   {grid-column:1/3; grid-row:1}
   #secMap   {grid-column:1;   grid-row:2}
@@ -937,14 +950,14 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
 #lock{position:fixed;inset:0;z-index:9999;background:#0a1622;display:flex;
   align-items:center;justify-content:center;padding:1rem}
 #lock.off{display:none}
-.lockbox{max-width:26rem;width:100%;background:#fff;border-radius:14px;padding:1.4rem}
+.lockbox{max-width:26rem;width:100%;background:#fff;border-radius:var(--r-panel);padding:1.4rem}
 .lockbox h2{font-size:var(--fs-xl);color:var(--navy);margin-bottom:.5rem}
 .lockbox p{font-size:var(--fs-lg);color:var(--ink2);line-height:1.45;margin-bottom:.9rem}
 .lockLbl{display:block;font-size:var(--fs-md);font-weight:700;color:var(--ink);margin-bottom:.25rem}
 #lockCode{width:100%;min-height:var(--tap);font-size:var(--fs-xl);text-align:center;
-  letter-spacing:.3em;border:2px solid var(--line2);border-radius:10px;padding:.4rem}
+  letter-spacing:.3em;border:2px solid var(--line2);border-radius:var(--r-panel);padding:.4rem}
 .lockbox .btn{width:100%;min-height:var(--tap);margin-top:.8rem;background:var(--navy);
-  color:#fff;border:0;border-radius:12px;font-size:var(--fs-lg);font-weight:700;cursor:pointer}
+  color:#fff;border:0;border-radius:var(--r-panel);font-size:var(--fs-lg);font-weight:700;cursor:pointer}
 /* ==================================================================== *
  *  SURVEY (parts 2-4): risk perception, emotional intelligence, background
  *
@@ -1000,7 +1013,7 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
    statements they belong to. Hairline outlines on a tinted ground let the
    question lead; the selected cell is the only strong mark in the row. */
 .qOpt{flex:1 1 0;min-width:0;min-height:2.6rem;display:flex;align-items:center;
-  justify-content:center;border:1px solid var(--line2);border-radius:7px;
+  justify-content:center;border:1px solid var(--line2);border-radius:var(--r-ctl);
   background:#fbfaf8;color:var(--muted);font-weight:600;font-size:var(--fs-md);
   cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
   transition:background .12s,border-color .12s,color .12s,transform .08s}
@@ -1019,7 +1032,7 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
   margin-bottom:.5rem}
 .dIn{width:100%;max-width:11rem;min-height:var(--tap);padding:.5rem .7rem;
   font-size:var(--fs-lg);font-family:var(--mono);border:2px solid var(--line2);
-  border-radius:10px;background:#fff;color:var(--ink)}
+  border-radius:var(--r-panel);background:#fff;color:var(--ink)}
 .dIn.bad{border-color:#bf5420;background:#fdf3ee}
 .dSlide{width:100%;max-width:26rem;min-height:var(--tap);margin:.1rem 0 0}
 .dSlideVal{font-family:var(--mono);font-size:var(--fs-xl);font-weight:700;
@@ -1030,7 +1043,7 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
   font-family:var(--mono);font-size:var(--fs-xs);color:var(--muted);font-weight:700}
 .dOpts{display:flex;flex-wrap:wrap;gap:.4rem}
 .dOpt{min-height:var(--tap);padding:.5rem .9rem;border:2px solid var(--line2);
-  border-radius:10px;background:#fff;color:var(--ink2);font-size:var(--fs-md);
+  border-radius:var(--r-panel);background:#fff;color:var(--ink2);font-size:var(--fs-md);
   font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .dOpt.on{background:var(--blue);border-color:var(--blue);color:#fff}
 .dWrite{margin-top:.45rem;width:100%;max-width:26rem;min-height:var(--tap);
@@ -1324,7 +1337,14 @@ const SCEN={
      hour ending at the stated 2000Z frame. Nothing later than 2000Z is shown. */
   radarFrames:[1930,1945,2000],
   title:"En route decision",
-  q:"Based on the information available at 2000Z, how likely would you be to choose KBBB as your next landing airport?",
+  /* The comparison moved into the stem. It used to ask how likely they were to
+     "choose KBBB as your next landing airport" while the scale ran between
+     "definitely another airport" and "definitely KBBB", so the comparison the
+     scale measures was stated only in the anchors and not in the question. It
+     is now in both. (A reviewer also claimed the midpoint had no stated
+     meaning; that was wrong -- the scale has carried a "50 equally likely"
+     label all along, and it stays.) */
+  q:"Based on the information available at 2000Z, how likely would you be to land at KBBB rather than at another airport?",
   /* All THREE sentences of the document's instruction line, verbatim. The
      middle one was missing, and it is the only social-desirability control in
      the instrument. Item 1 asks a pilot to say how likely they are to press on
@@ -1336,7 +1356,11 @@ const SCEN={
   acts:["Continue to KBBB with the intention of landing there.",
         "Continue toward KBBB temporarily while preparing to divert at a defined decision point.",
         "Divert immediately to KCCC.",
-        "Divert immediately to another suitable airport."],
+        /* "another suitable airport" implied the briefing had named one. It
+           names exactly two fields, so this option asked for a choice the
+           stimulus never equipped the participant to make. It now says plainly
+           that the field would be theirs to pick. */
+        "Divert immediately to a different airport of your own choosing."],
   /* Option B (index 1) alone opens the trigger question, exactly as the
      document specifies with "Displayed only after Action B". */
   triggerFor:1
