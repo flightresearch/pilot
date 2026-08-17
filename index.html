@@ -119,10 +119,18 @@ h1,h2,h3,h4{margin:0;font-weight:700;letter-spacing:-.01em}
 /* ---------------- layout ---------------- */
 main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000px;margin:0 auto}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+/* Section headings, not filled title bars. Seven navy blocks over rounded white
+   boxes is the card-deck pattern this file's own comments keep rejecting, and it
+   was the loudest generic thing left on the page: it made every section shout at
+   the same volume and framed a briefing as a dashboard. A ruled small-caps
+   heading on the card's own paper reads like the section head of a document,
+   which is what these are. */
 .card > h2{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;
-  font-size:var(--fs-md);font-weight:700;color:#fff;background:var(--navy);padding:.5rem .65rem}
+  font-size:var(--fs-xs);font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--navy);background:none;
+  padding:.7rem .8rem .45rem;border-bottom:1px solid var(--line2)}
 .card > h2 .sp{flex:1}
-.card > h2 .tag{font-size:var(--fs-xs);background:rgba(255,255,255,.18);color:#fff;
+.card > h2 .tag{font-size:var(--fs-xs);background:var(--blue2);color:var(--navy);
   border-radius:6px;padding:.12em .5em;font-weight:600}
 .body{padding:var(--pad)}
 
@@ -706,7 +714,10 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 .choice.sel{border-color:var(--navy);background:var(--blue2);font-weight:700;border-width:3px}
 .choice input{accent-color:var(--navy);width:1.5rem;height:1.5rem;flex:0 0 auto}
 .sub{display:grid;gap:.45rem;grid-template-columns:1fr;margin:.45rem 0 0 1.4rem}
-.slbox{background:#f4f7f9;border:2px solid var(--line);border-radius:10px;
+/* Warm paper, like every other ground on the page. This box was cool blue-grey
+   while the cards around it were warm, so the decision card read as a different
+   material from the briefing it belongs to. */
+.slbox{background:#faf9f6;border:2px solid var(--line);border-radius:10px;
   padding:.65rem;margin:.9rem 0 .2rem}
 /* BOTH readouts, not just the first. #prVal was styled by nothing at all, so
    the two 0-100 items rendered as visibly different controls: the likelihood
@@ -857,7 +868,12 @@ body:has(#svy:not(.off)) main{display:none}
 
 /* ================= device tailoring ================= */
 @media (max-width:360px){ html{font-size:18px} }
-@media (min-width:768px){ html{font-size:17px} }
+/* The smaller root is for real desktops, and it was keyed on width alone, so
+   turning a phone sideways crossed 768px and shrank the whole stimulus -- body
+   to 17px, chart labels smaller still, and lines running to about a hundred
+   characters. A landscape phone is about 390px tall; requiring height as well
+   keeps it on the phone scale where it belongs. */
+@media (min-width:768px) and (min-height:600px){ html{font-size:17px} }
 html[data-dev="phone-sm"]{--pad:.55rem}
 html[data-dev="phone-xs"]{--pad:.45rem}
 /* the xs class inherits every phone-sm rule; it differs only in scale */
@@ -3573,9 +3589,15 @@ function makeSlider(key,ids,onChange){
   /* Drag is the hardest gesture for an older hand — tremor, dry fingertips,
      capacitive dropout. Never make it the only path to a measured value. */
   document.getElementById(ids.down).addEventListener("click",()=>{
-    el.value=Math.max(+el.min,(R[key]===null?50:R[key])-1); slide("step"); });
+    el.value=(R[key]===null?50:Math.max(+el.min,R[key]-1)); slide("step"); });
   document.getElementById(ids.up).addEventListener("click",()=>{
-    el.value=Math.min(+el.max,(R[key]===null?50:R[key])+1); slide("step"); });
+    /* The first press on either stepper commits 50 -- the position the thumb has
+       been sitting at all along -- instead of stepping off an undisclosed
+       midpoint to 49 or 51. The old behaviour recorded a number one away from a
+       centre the participant had never been shown, in a direction that depended
+       on which button they happened to reach first. Every press after that
+       steps by one as before. */
+    el.value=(R[key]===null?50:Math.min(+el.max,R[key]+1)); slide("step"); });
   /* Wrapped, not passed directly: as a listener the Event object arrives as
      slide's first argument and would be stored as the input modality. */
   el.addEventListener("input",()=>slide("drag"));
