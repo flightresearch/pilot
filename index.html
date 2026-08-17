@@ -52,9 +52,23 @@ html{
      for MVFR at a glance. Category hues are untouched: they are FAA
      conventions and not ours to restyle. */
   --navy:#22333f; --blue:#12657a; --blue2:#e2eef1;
-  --bg:#f0efec; --card:#fff; --ink:#141b21; --ink2:#3b4750; --muted:#6a7480;
+  --bg:#f0efec; --card:#fff; --ink:#141b21; --ink2:#3b4750; /* Darkened from #6a7480. That value cleared AA on pure white at 4.75:1 and was
+   then used on every tinted ground the page has -- 4.41:1 on the slider box and
+   4.13:1 on the paper background, both failing. The slider box is where the DV
+   anchor labels live ("definitely another airport" / "definitely KBBB"), so the
+   two labels that define the primary outcome's scale were the ones failing. */
+--muted:#5a6472;
   --line:#d8d5cf; --line2:#a9a49b;
+  /* Placeholders only. The values that actually paint every category mark live
+     in CATC, and these four are overwritten from it at boot so CSS and canvas
+     cannot drift -- they had drifted, by about 15%, and every one of these
+     except --ifr was dead while the legend, the station circles and the chips
+     were painted from the JS constant. */
   --vfr:#00843d; --mvfr:#0b5ed7; --ifr:#c00000; --lifr:#a21caf;
+  /* Errors get their own ink. --ifr was doing this job, so the page taught the
+     participant that red means instrument conditions and then drew a red border
+     round the DV entry box when they mistyped a number. */
+  --err:#bf5420;
   --amber:#8f5606;
   --qink:#1d4a5a;              /* item text: reads as ink, not as chrome */
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
@@ -739,7 +753,7 @@ input[type=range].untouched:focus-visible::-moz-range-thumb{opacity:.45}
 .numIn{width:100%;max-width:7rem;min-height:var(--tap);text-align:center;
   font-family:var(--mono);font-size:var(--fs-xl);font-weight:700;color:var(--navy);
   border:2px solid var(--line2);border-radius:10px;padding:.2rem}
-.numIn.bad{border-color:var(--ifr)}
+.numIn.bad{border-color:var(--err)}
 .slStep{flex:0 0 auto;width:var(--tap);height:var(--tap);border-radius:50%;
   border:2px solid var(--navy);background:#fff;color:var(--navy);
   font-size:1.6rem;line-height:1;font-weight:700;cursor:pointer;padding:0}
@@ -1027,7 +1041,7 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
   .qOpt{min-height:3rem}
 }
 #lockMsg{min-height:1.5rem;margin-top:.5rem;font-size:var(--fs-md);font-weight:600;
-  color:var(--ifr);text-align:center}
+  color:var(--err);text-align:center}
 @media (max-height:520px) and (orientation:landscape){ #hdr{position:static} }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -1628,6 +1642,11 @@ function flightCat(ceil,vis){
   if(ceil<=3000||vis<=5)return "MVFR";
   return "VFR";}
 const CATC={VFR:"#00a04b",MVFR:"#0d6efd",IFR:"#d40000",LIFR:"#c026d3"};
+/* Single source of truth. The CSS custom properties are set from these so a
+   maintainer editing either one cannot leave the legend and the chart teaching
+   different colours for the same category. */
+Object.entries(CATC).forEach(([k,v])=>
+  document.documentElement.style.setProperty("--"+k.toLowerCase(),v));
 
 // Standard NWS base-reflectivity palette. The scenario's rain never reaches
 // the red/magenta end, which is exactly the point of using the real scale.
@@ -3380,7 +3399,21 @@ function buildLegend(){
   const L=document.getElementById("mapLegend");
   const cats=["VFR","MVFR","IFR","LIFR"].map(c=>
     `<span class="catSw${c==="VFR"?" onLight":""}" style="background:${CATC[c]}">${c}</span>`).join(" ");
-  const bins=DBZ.slice(0,9).map(([v,c])=>`<i style="background:${c}"></i>`).join("");
+  /* Composited exactly as drawMap composites it. The swatches were drawn at
+     full opacity while the mosaic is painted through an intensity-dependent
+     alpha over the basemap, so the key showed colours that appear nowhere on
+     the chart -- measured 49 to 99 RGB units apart, worst in the light bins
+     this scenario actually lives in. A reflectivity key whose swatch does not
+     match its echo cannot be used to read the echo. */
+  const MAPBG=[236,238,232];                       // #eceee8, the basemap ink
+  const swatch=(hexc,v)=>{
+    const a=0.30+0.42*Math.max(0,Math.min(1,(v-5)/22));
+    const p=[1,3,5].map(i=>parseInt(hexc.substr(i,2),16))
+      .map((ch,i)=>Math.round(ch*a+MAPBG[i]*(1-a)));
+    return "rgb("+p.join(",")+")";
+  };
+  const bins=DBZ.slice(0,9).map(([v,c])=>
+    `<i style="background:${swatch(c,v)}"></i>`).join("");
   L.innerHTML=`<span class="legGroup">Flight category: ${cats}</span>
     <span class="legGroup">Radar dBZ <span id="dbzScale">${bins}</span>
       <span style="font-family:var(--mono)">5 → 45</span></span>`;
