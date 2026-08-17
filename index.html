@@ -114,9 +114,37 @@ h1,h2,h3,h4{margin:0;font-weight:700;letter-spacing:-.01em}
 /* One status line, present at both stages, scenario-dependent content —
    realism without making the layout itself a T1/T2 difference. */
 #strip{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:.3rem .5rem;margin-top:.35rem}
-#strip span{font-family:var(--mono);font-size:var(--fs-sm);font-weight:700;
-  background:rgba(255,255,255,.16);padding:.12em .5em;border-radius:var(--r-ctl);white-space:nowrap}
-#strip span.now{background:#fff;color:var(--navy)}
+/* A status bar, read at a glance: an icon to find the row by, the word for what
+   the number is, then the number. The old chips were bare figures. */
+.sChip{display:grid;grid-template-columns:auto 1fr;grid-template-areas:
+    "ico lab" "ico val";gap:0 .45rem;align-items:center;
+  background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.16);
+  border-radius:var(--r-ctl);padding:.3rem .6rem}
+.sChip .sIco{grid-area:ico;width:1.5rem;height:1.5rem;color:#fff;opacity:.85}
+.sLab{grid-area:lab;font-size:var(--fs-xs);letter-spacing:.1em;text-transform:uppercase;
+  opacity:.72;line-height:1.25;white-space:nowrap}
+.sVal{grid-area:val;font-family:var(--mono);font-size:var(--fs-sm);font-weight:700;
+  line-height:1.2;white-space:nowrap;font-variant-numeric:var(--num)}
+/* The airport chips carry minutes and a bar of that length, so the comparison
+   between the two is a glance rather than a subtraction. */
+.sChip.sLeg{grid-template-areas:"ico lab" "ico val" "ico bar"}
+.sLeg .sVal{display:inline-flex;gap:.45rem;align-items:baseline}
+.sMin{font-family:var(--mono);font-size:var(--fs-xs);font-weight:700;opacity:.8}
+.sBar{grid-area:bar;display:block;height:3px;border-radius:2px;margin-top:.22rem;
+  background:rgba(255,255,255,.30);position:relative;width:100%}
+.sBar::after{content:"";position:absolute;inset:0 auto 0 0;width:var(--w);
+  background:#fff;opacity:.9;border-radius:2px}
+/* On a phone the four chips wrapped to three rows and took 339px of a 667px
+   screen -- half the display gone before the scenario starts. Two per row,
+   smaller marks, tighter padding. */
+@media (max-width:560px){
+  #strip{display:grid;grid-template-columns:1fr 1fr;gap:.3rem}
+  .sChip{padding:.25rem .45rem;gap:0 .35rem}
+  .sChip .sIco{width:1.15rem;height:1.15rem}
+  .sLab{font-size:calc(var(--fs-xs)*.78);letter-spacing:.06em}
+  .sVal{font-size:var(--fs-xs)}
+  .sMin{font-size:calc(var(--fs-xs)*.85)}
+}
 .ageChip{font-family:var(--mono);font-size:var(--fs-xs);font-weight:700;color:var(--ink2);
   background:#e8edf2;border:1px solid var(--line);padding:.1em .45em;border-radius:var(--r-chip)}
 #steps{display:flex;gap:.3rem}
@@ -1098,7 +1126,9 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
 
   <div class="sp"></div>
   <!-- No stage pills: there is one measurement, so there is nothing to step through -->
-  <div id="steps"><span class="step on">En route &middot; 2000Z</span></div>
+  <!-- The time moved into the strip, where it is labelled. Repeating it here
+       spent the most prominent slot in the header on a duplicate. -->
+  <div id="steps"><span class="step on">En route</span></div>
   <div id="strip"></div>
 </header>
 
@@ -4019,9 +4049,28 @@ function enterStage(){
   // Status strip owns "now" and position, so those numbers appear nowhere else.
   // Times, not distances: the document gives minutes, and the ground speed the
   // chart is built on is an assumption the participant should never inherit.
+  /* Four bare figures, two of which read "2,000", and nothing saying which was
+     a time and which an altitude. The two airports were even phrased in
+     opposite orders -- "45 min to KBBB" against "KCCC about 50 min" -- so a
+     pilot had to parse each chip separately instead of scanning a row.
+
+     Every value now carries the word for what it is, and the two airports get
+     identical treatment: role, identifier, minutes, and a bar whose length is
+     the flying time. The bar is the quick read -- KCCC is slightly further,
+     visible without comparing two numbers. Both are drawn the same way and
+     scaled to the same maximum, so neither option is flattered. */
+  const legBar=m=>`<i class="sBar" style="--w:${Math.round(m/MIN_KCCC*100)}%"></i>`;
   document.getElementById("strip").innerHTML =
-    [[st.zulu+"Z","now"],[CRUISE_TXT,""],["45 min to KBBB",""],["KCCC about 50 min",""]]
-    .map(([t,c])=>`<span class="${c}">${t}</span>`).join("");
+    `<div class="sChip">${svg("clock","sIco")}
+       <span class="sLab">Now</span><b class="sVal">${st.zulu}Z</b></div>
+     <div class="sChip">${svg("plane","sIco")}
+       <span class="sLab">Your altitude</span><b class="sVal">${CRUISE_TXT}</b></div>
+     <div class="sChip sLeg">${svg("runway","sIco")}
+       <span class="sLab">Destination</span><b class="sVal">KBBB</b>
+       <span class="sMin">${MIN_KBBB} min</span>${legBar(MIN_KBBB)}</div>
+     <div class="sChip sLeg">${svg("alt","sIco")}
+       <span class="sLab">Alternate</span><b class="sVal">KCCC</b>
+       <span class="sMin">${MIN_KCCC} min</span>${legBar(MIN_KCCC)}</div>`;
   /* The document says only "Radar at 2000Z" and never mentions a datalink. The
      FIS-B latency caveat that used to sit here is real-world correct but
      invented relative to the instrument, and it is an official-sounding
