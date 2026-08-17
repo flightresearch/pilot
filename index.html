@@ -3518,8 +3518,15 @@ function makeSlider(key,ids,onChange){
     const p=(el.value-el.min)/(el.max-el.min)*100;
     el.style.backgroundImage=`linear-gradient(90deg,var(--navy) ${p}%,var(--line) ${p}%)`;
   };
-  const slide=()=>{
-    R.mode=R.mode||{}; if(!R.mode[key]) R.mode[key]="drag";
+  /* Records the control that produced the value now on file, not the first one
+     touched. The previous version stamped "typed" from the numeric field's
+     input event before that value had been sanitised or range-checked, so a
+     single rejected keystroke relabelled a dragged answer forever; and the
+     plus/minus steppers -- the affordance built for hands that cannot drag --
+     routed through here and were filed as "drag", making them invisible in a
+     sample this file elsewhere describes as running to eighty. */
+  const slide=(how)=>{
+    R.mode=R.mode||{}; R.mode[key]=how||"drag";
     if(R.firstTouchMs[key]===null){
       R.firstTouchMs[key]=Math.round(performance.now()-R.tShown);
       TEL.log("slider_first",{item:key,ms:R.firstTouchMs[key]});}
@@ -3533,10 +3540,12 @@ function makeSlider(key,ids,onChange){
   /* Drag is the hardest gesture for an older hand — tremor, dry fingertips,
      capacitive dropout. Never make it the only path to a measured value. */
   document.getElementById(ids.down).addEventListener("click",()=>{
-    el.value=Math.max(+el.min,(R[key]===null?50:R[key])-1); slide(); });
+    el.value=Math.max(+el.min,(R[key]===null?50:R[key])-1); slide("step"); });
   document.getElementById(ids.up).addEventListener("click",()=>{
-    el.value=Math.min(+el.max,(R[key]===null?50:R[key])+1); slide(); });
-  el.addEventListener("input",slide);
+    el.value=Math.min(+el.max,(R[key]===null?50:R[key])+1); slide("step"); });
+  /* Wrapped, not passed directly: as a listener the Event object arrives as
+     slide's first argument and would be stored as the input modality. */
+  el.addEventListener("input",()=>slide("drag"));
   el.addEventListener("change",()=>TEL.log("slider_set",{item:key,v:R[key],moves:R.moves[key]}));
   /* Typed entry, the method the scenario document actually specifies. Accepts
      only 0-100; anything else marks the field and sets nothing, so a typo
@@ -3548,12 +3557,12 @@ function makeSlider(key,ids,onChange){
        process: a drag is a felt position on a continuum, a typed number is a
        considered figure. Recorded so the distinction is available rather than
        inferred. */
-    num.addEventListener("input",()=>{ R.mode=R.mode||{}; R.mode[key]="typed";
+    num.addEventListener("input",()=>{
       const t=num.value.replace(/[^0-9]/g,"");
       if(t!==num.value) num.value=t;
       if(t===""){ num.classList.remove("bad"); return; }
       const v=parseInt(t,10);
-      if(v>=0&&v<=100){ num.classList.remove("bad"); el.value=v; slide(); }
+      if(v>=0&&v<=100){ num.classList.remove("bad"); el.value=v; slide("typed"); }
       else num.classList.add("bad");
     });
     /* Leaving focus reconciles the field with the record. Typing 105 fires
@@ -4024,8 +4033,17 @@ const netExport=()=>{ if(RESULT.response.destination_likelihood!==null
      had DV_stage rewritten to "partial_followup", making them indistinguishable
      in the backend from someone who abandoned on the pressure page. Reproduced
      before the fix: survey_complete -> partial_followup on one tab switch. */
-  && RESULT.stage!=="complete" && RESULT.stage!=="survey_complete")
-  exportResult(RESULT.response.perceived_pressure!==null?"partial_followup":"committed"); };
+  && RESULT.stage!=="survey_complete"){
+  /* A finished record is never downgraded (that is what the note above is
+     about), but an unfinished SURVEY now reports itself rather than staying
+     silent. Without this branch the net was a no-op for every page of parts
+     2 to 4, because finish() writes "complete" before the scales even start. */
+  const svyEl=document.getElementById("svy");
+  const inSurvey=SVY.pages.length && svyEl && !svyEl.classList.contains("off");
+  if(inSurvey){ svySnapshot(); exportResult("survey_partial"); }
+  else if(RESULT.stage!=="complete")
+    exportResult(RESULT.response.perceived_pressure!==null?"partial_followup":"committed");
+} };
 addEventListener("pagehide",netExport);
 document.addEventListener("visibilitychange",()=>{ if(document.hidden) netExport(); });
 
@@ -4577,7 +4595,23 @@ function svyMissing(){
              : p.type==="demo"   ? p.spec.fields.filter(f=>f.req).map(f=>f.id) : [];
   return need.filter(id=>SVY.ans[id]===undefined);
 }
+/* The whole independent variable used to appear on the record in one moment,
+   on the final page. Someone who answered 44 of the 45 scale items and then
+   closed the tab contributed a scenario row with an empty predictor block --
+   and attrition on a long scale is not random, it tracks fatigue, device and
+   age, every one of them a covariate here. The DV was protected by three
+   redundant paths and the predictor by none. Snapshotted on every answer
+   instead, and mirrored into sessionStorage so a reclaimed tab has something
+   to recover. */
+function svySnapshot(){
+  if(!SVY.pages.length || !Object.keys(SVY.ans).length) return;
+  const sc=svyScores();
+  RESULT.svy={ans:SVY.ans, scored:sc.scored, sub:sc.sub, times:SVY.times};
+  if(SS){ try{ SS.setItem("dv_svy",JSON.stringify({ans:SVY.ans,page:SVY.page})); }
+          catch(e){} }
+}
 function svyRecheck(){
+  svySnapshot();
   const msg=document.getElementById("svyMsg");
   if(!msg||!msg.textContent) return;          // silent until an advance is refused
   msg.textContent=svyCount(svyMissing().length);
