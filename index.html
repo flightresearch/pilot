@@ -608,9 +608,17 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
    carry the structure now, the station identifier is the only large thing on
    the row, and values sit inline beside small labels the way they do on a
    printed briefing. */
-.obsRow{border-top:1px solid var(--line);padding:.5rem 0}
-.obsRow:first-of-type{border-top:none}
-.obsRow.dest{box-shadow:inset 3px 0 0 var(--navy);padding-left:.6rem}
+/* One list, hairline-separated. Reports are rows of the same table, so they
+   share a left margin and are divided by a rule rather than being set apart by
+   indents and bars. */
+.obsRow{border-top:1px solid var(--line);padding:.45rem 0}
+.obsRow:first-of-type{border-top:none;padding-top:.15rem}
+.obsRow:last-of-type{padding-bottom:.1rem}
+/* The destination no longer carries an accent bar and an indent. The word
+   DESTINATION beside the identifier already says which field this is, and the
+   bar pushed only two of the three reports off the group's left margin, which
+   is most of what made the section look disjointed. */
+.obsRow.dest{box-shadow:none;padding-left:0}
 /* Destination identity is carried by the word DESTINATION, not by a hue. The
    card border, the tag, the chart ring and the cross-section label were all
    purple, and the legend teaches magenta-purple as LIFR -- the worst category.
@@ -679,9 +687,15 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 .rawRow{padding:.35rem .65rem;border-top:1px dashed var(--line);background:#fafcfd}
 /* The coded report now leads the row, so it is set as data rather than as a
    collapsed detail: monospace, tinted ground, selectable. */
+/* The coded report is a line of text, not a component. It used to sit in its own
+   filled and bordered box inside a row that had its own rule and accent bar,
+   inside the bordered METAR group -- three frames deep for one line of type, so
+   the section read as three separate cards rather than one list of reports. The
+   frame is gone; the mono face and its own line already mark it as the coded
+   form, which is what the toggle beside it says. */
 .rawLead{font-family:var(--mono);font-size:var(--fs-md);font-weight:700;
-  color:var(--ink);background:#f6f4f0;border:1px solid var(--line);
-  border-radius:var(--r-chip);padding:.4rem .55rem;margin:.15rem 0 .4rem;
+  color:var(--ink);background:none;border:0;border-radius:0;
+  padding:0;margin:.1rem 0 .15rem;
   white-space:pre-wrap;word-break:break-word;overflow-x:auto}
 .obsMain.plain{border-left:3px solid var(--line2);padding-left:.6rem;margin:.1rem 0 .2rem}
 .rawNote{display:block;margin-top:.3rem;font-family:var(--sans);font-size:var(--fs-xs);color:var(--muted)}
@@ -1470,8 +1484,21 @@ const SITUATION=[
     rather than implied: at 2,000 ft MSL over terrain near 1,000 ft the flight
     is below the 1,200 ft AGL Class E floor for most of the leg, and inside the
     700 ft transition areas near both fields it is not. */
- ["route","Airspace","Class G below 1,200 ft AGL","Class E above · both fields carry Class E from 700 ft AGL · at 2,000 ft MSL you are in Class G en route and in Class E near either field"],
- ["runway","Destination","KBBB · Rwy 23, 4,000 ft","Non-towered · AWOS · pattern 1,000 ft AGL · Class G below 700 ft AGL, Class E above"],
+ /* The two fields the participant is choosing between now sit side by side in
+    the two-column grid instead of diagonally opposite, where they could not be
+    read against each other. Their sub-lines carry the same attributes in the
+    same order, so a difference between the options is visible as a difference
+    in the text rather than having to be hunted for.
+
+    The airspace clause is gone from both of them. It was stated three times --
+    here, and on each field -- and one statement of a fact both fields share is
+    one statement; the AIRSPACE row below carries it for the whole flight. The
+    alternate's flying time is dropped for the same reason: the header strip
+    states it. Nothing a participant needs has been removed, only repeated. */
+ ["runway","Destination","KBBB · Rwy 23, 4,000 ft","Non-towered · AWOS · pattern 1,000 ft AGL"],
+ ["alt","Alternate","KCCC · Rwy 18/36, 4,500 ft","Non-towered · AWOS · no TAF · pattern 1,000 ft AGL · northeast · diversion route stays outside the stronger shower area"],
+ ["route","Airspace","Class G below 1,200 ft AGL","Class E above, and from 700 ft AGL near both fields · your 2,000 ft cruise is Class G en route"],
+
  /* The document's clause "the diversion route remains outside the stronger
     shower area" was truncated away here. It existed only as chart geometry --
     recoverable only by projecting the dashed 045 leg across the mosaic -- so a
@@ -1486,7 +1513,7 @@ const SITUATION=[
     approaches; TAF coverage is far sparser than approach coverage, so "no TAF"
     at such a field is normal rather than contradictory. Matching the airspace
     also keeps weather the only thing that differs between the two options. */
- ["alt","Alternate","KCCC · Rwy 18/36, 4,500 ft","Non-towered · AWOS · no TAF · pattern 1,000 ft AGL · Class G below 700 ft AGL, Class E above · about 50 minutes northeast · diversion route remains outside the stronger shower area"],
+
  ["fuel","Fuel","90 minutes +","At least, remaining at landing either way"],
  ["sun","Daylight","2 hours +","At least, remaining"],
  // its own glyph: sharing the aircraft icon made two different rows look alike
