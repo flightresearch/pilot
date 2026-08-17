@@ -549,6 +549,13 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
 .briefGrp{min-width:0;border:1px solid var(--line);border-radius:10px;
   background:#fbfaf8;padding:.55rem .8rem .7rem}
 .briefGrp>.briefH{margin-top:0}
+/* The METAR box leads with the coded report and the TAF box never shows one,
+   because the scenario document gives the destination forecast in prose and no
+   coded TAF exists to display. Two identically framed boxes using opposite
+   conventions invites a pilot to wonder what is being withheld, so the box says
+   why rather than leaving it to be inferred. */
+.grpNote{font-size:var(--fs-xs);color:var(--muted);line-height:1.35;
+  margin:-.1rem 0 .45rem}
 .briefGrp+.briefGrp{margin-top:1.1rem}
 .briefH+.obsRow{border-top:none}
 .briefSec{border-top:2px solid var(--line);margin-top:1.6rem;padding-top:.2rem}
@@ -3475,7 +3482,8 @@ function renderBrief(){
      stacked underneath, and the advisories run full width below both. */
   briefBody.innerHTML=
     `<section class="briefGrp"><h3 class="briefH">METAR</h3>${obs}</section>
-     <section class="briefGrp"><h3 class="briefH">TAF</h3>${fcst}</section>
+     <section class="briefGrp"><h3 class="briefH">TAF</h3>
+       <div class="grpNote">Forecast given in plain language; no coded TAF issued.</div>${fcst}</section>
      <section class="briefGrp briefAdv"><h3 class="briefH">Advisories</h3>${adv}</section>`;
   briefBody.querySelectorAll("[data-raw]").forEach(b=>b.addEventListener("click",()=>{
     const el=document.getElementById(b.dataset.raw);
