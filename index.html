@@ -1095,16 +1095,16 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
 .svyH{font-size:var(--fs-xl);font-weight:400;color:var(--navy);
   line-height:1.2;margin:.9rem 0 .34rem;letter-spacing:normal}
 .svyFine{font-size:var(--fs-sm);color:#000;line-height:1.45;margin:.9rem 0 0}
-.svySub{font-size:var(--fs-sm);color:var(--muted);margin:0 0 2.3rem}
+.svySub{font-size:var(--fs-sm);color:var(--muted);margin:0 0 1.4rem}
 
-.qItem{padding:1.5rem 0}
+.qItem{padding:.95rem 0}
 .qItem.miss{background:linear-gradient(90deg,rgba(191,84,32,.07),transparent 60%);
   box-shadow:inset 3px 0 0 #bf5420}
 /* The item is the only thing on the page the participant has to read
    carefully, so it gets its own ink -- a deep teal-slate that separates it
    from the numerals, the anchors and the progress chrome without shouting. */
-.qText{font-size:1.3rem;line-height:1.5;color:var(--qink);
-  margin:0 0 .7rem;font-weight:500}
+.qText{font-size:1.3rem;line-height:1.35;color:var(--qink);
+  margin:0 0 .45rem;font-weight:500}
 .qNum{display:inline-block;min-width:1.85rem;margin-right:.3rem;
   font-size:var(--fs-xs);color:var(--qsoft);font-weight:400}
 .qPend{color:#bf5420;font-style:italic;font-weight:600}
@@ -1120,12 +1120,17 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
    cannot drift.) */
 .qScale{display:flex;gap:0;border:1px solid #8a857c;
   border-radius:var(--r-ctl);background:#fbfaf8}
-.qOpt{flex:1 1 0;min-width:0;min-height:48px;display:flex;align-items:center;
+/* 38px with a mouse, 52px under a finger. The single 48px floor was set for
+   touch and then applied to everyone, so a desktop reader paid a thumb-sized
+   row on all 45 items and could hold only two questions on screen at once.
+   WCAG asks 24px of a pointer target and 44px of a touch one; both are met,
+   and the coarse-pointer query is what decides which. */
+.qOpt{flex:1 1 0;min-width:0;min-height:38px;display:flex;align-items:center;
   justify-content:center;border:0;border-left:1px solid var(--line2);
   border-radius:0;background:transparent;color:var(--qsoft);font-weight:400;
   font-size:var(--fs-md);cursor:pointer;user-select:none;
   -webkit-tap-highlight-color:transparent;transition:background .12s,color .12s}
-@media (pointer:coarse){ .qOpt{min-height:56px} }
+@media (pointer:coarse){ .qOpt{min-height:52px} }
 .qOpt:first-child{border-left:0;border-radius:7px 0 0 7px}
 .qOpt:last-child{border-radius:0 7px 7px 0}
 @media (hover:hover){ .qOpt:hover{background:var(--blue2);color:#000} }
@@ -1134,8 +1139,8 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
   border-left-color:transparent;box-shadow:inset 0 0 0 2px #fbfaf8}
 .qOpt.on + .qOpt{border-left-color:transparent}
 .qOpt:focus-visible{outline:3px solid var(--blue);outline-offset:-3px}
-.qAnch{display:flex;justify-content:space-between;gap:.6rem;margin-top:.3rem;
-  padding:0 1px;line-height:1.2;font-size:var(--fs-xs);color:var(--qsoft);font-weight:400}
+.qAnch{display:flex;justify-content:space-between;gap:.6rem;margin-top:.2rem;
+  padding:0 1px;line-height:1.15;font-size:var(--fs-xs);color:var(--qsoft);font-weight:400}
 .qAnch span:last-child{text-align:right}
 
 /* background fields */
@@ -1216,7 +1221,7 @@ html[data-dev="phone-sm"] .card > h2 .tag{margin-left:auto}
 
 @media (min-width:640px){
   #svyInner{padding-left:1.5rem;padding-right:1.5rem}
-  .qItem{padding:1.7rem 0}
+  .qItem{padding:1.05rem 0}
 }
 #lockMsg{min-height:1.5rem;margin-top:.5rem;font-size:var(--fs-md);font-weight:600;
   color:var(--err);text-align:center}
@@ -2175,7 +2180,7 @@ function drawMap(C,opts){
   /* Obstacles for label placement, rebuilt every draw. The top-right corner
      belongs to the north arrow and the frame-time stamp; each station circle
      protects itself; own-ship is added where it is drawn. */
-  KEEPOUT=[];
+  KEEPOUT=[]; LINEKEEP=[];
   koAdd(W-S(64),0,W,S(68));
   for(const k in APTS){ const a=APTS[k],ax=X(a.x,a.z),ay=Y(a.x,a.z),rr=S(14);
     koAdd(ax-rr,ay-rr,ax+rr,ay+rr); }
@@ -2239,6 +2244,8 @@ function drawMap(C,opts){
 
   g.strokeStyle="#101a52";g.lineWidth=S(2.4);
   g.beginPath();g.moveTo(X(A.x,A.z),Y(A.x,A.z));g.lineTo(X(B.x,B.z),Y(B.x,B.z));g.stroke();
+  // the planned course, so no label may sit across it
+  lineAdd(X(A.x,A.z),Y(A.x,A.z),X(B.x,B.z),Y(B.x,B.z));
   const ux=(B.x-A.x)/D_KBBB,uz=(B.z-A.z)/D_KBBB,nx=-uz,nz=ux;
   g.lineWidth=S(1.6);
   for(let d=20;d<D_KBBB;d+=20){             // 20 NM distance ticks
@@ -2251,6 +2258,8 @@ function drawMap(C,opts){
   g.beginPath();g.moveTo(X(A.x,A.z),Y(A.x,A.z));
   g.lineTo(X(APTS.KCCC.x,APTS.KCCC.z),Y(APTS.KCCC.x,APTS.KCCC.z));g.stroke();
   g.setLineDash([]);
+  // the diversion leg too: it is the alternative the participant is weighing
+  lineAdd(X(A.x,A.z),Y(A.x,A.z),X(APTS.KCCC.x,APTS.KCCC.z),Y(APTS.KCCC.x,APTS.KCCC.z));
 
   // --- aircraft ---
   // own-ship can be requested independently of the weather layers, so the
@@ -2341,6 +2350,30 @@ const STN_OFF={KBBB:{dx:30,dy:-22},KCCC:{dx:-32,dy:-18}};
    the layout has to bend instead of the content.                          */
 let KEEPOUT=[];
 const koAdd=(x0,y0,x1,y1)=>KEEPOUT.push({x0,y0,x1,y1});
+/* Obstacles that are lines, not boxes. The label search has always avoided the
+   station circles, the aeroplane, the north arrow and other labels -- and never
+   the course itself, because a rectangle cannot describe a diagonal leg. So a
+   block was free to settle straight on top of the line joining the aeroplane
+   to its destination, which is the one mark on the chart the participant is
+   tracing. Registered as segments and tested properly. */
+let LINEKEEP=[];
+const lineAdd=(x0,y0,x1,y1)=>LINEKEEP.push({x0,y0,x1,y1});
+function segHitsRect(s,b){
+  const {x0,y0,x1,y1}=b;
+  const inside=(x,y)=>x>=x0&&x<=x1&&y>=y0&&y<=y1;
+  if(inside(s.x0,s.y0)||inside(s.x1,s.y1)) return true;
+  const cross=(ax,ay,bx,by,cx,cy,dx,dy)=>{
+    const d=(bx-ax)*(dy-cy)-(by-ay)*(dx-cx);
+    if(!d) return false;
+    const t=((cx-ax)*(dy-cy)-(cy-ay)*(dx-cx))/d;
+    const u=((cx-ax)*(by-ay)-(cy-ay)*(bx-ax))/d;
+    return t>=0&&t<=1&&u>=0&&u<=1;
+  };
+  return cross(s.x0,s.y0,s.x1,s.y1,x0,y0,x1,y0)
+      || cross(s.x0,s.y0,s.x1,s.y1,x1,y0,x1,y1)
+      || cross(s.x0,s.y0,s.x1,s.y1,x1,y1,x0,y1)
+      || cross(s.x0,s.y0,s.x1,s.y1,x0,y1,x0,y0);
+}
 const koHit=(b)=>KEEPOUT.some(k=>b.x0<k.x1&&b.x1>k.x0&&b.y0<k.y1&&b.y1>k.y0);
 const koArea=(b)=>KEEPOUT.reduce((s,k)=>s+
   Math.max(0,Math.min(b.x1,k.x1)-Math.max(b.x0,k.x0))*
@@ -2464,7 +2497,11 @@ function drawStation(g,m,X,Y){
     const cc=mk(ax,c.ay,c.rt);
     // prefer clear positions; among clear ones, the nearest to the station
     const dist=Math.hypot((cc.x0+cc.x1)/2-cx,(cc.y0+cc.y1)/2-cy);
-    const score=koArea(cc)*40+(inCanvas(cc)?0:1e9)+dist;
+    /* Crossing a leg is worse than sitting near one. The penalty is large
+       enough to push a block off the line whenever any clear position exists,
+       and finite so a chart with nowhere clean still places every label. */
+    const onLeg=LINEKEEP.some(sg=>segHitsRect(sg,cc))?1:0;
+    const score=koArea(cc)*40+onLeg*4000+(inCanvas(cc)?0:1e9)+dist;
     if(score<bestScore){ bestScore=score; best=cc; }
   }
   tx=best.ax; ty=best.ay; const rt=best.rt;
