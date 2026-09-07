@@ -1622,7 +1622,7 @@ const MISSION_CHIPS=[
    document's Scenario Information table is still present. */
 const SITUATION=[
  ["plane","Aircraft","Single engine","Day VFR only, not equipped for IFR · no autopilot"],
- ["route","Route","135 NM","Rural · flat terrain, no obstacle concerns · approaching KBBB from the west-southwest"],
+ ["route","Route","135 NM","Rural, flat terrain · approaching KBBB from the west-southwest"],
  /* En-route airspace, stated because it was not. Without it a participant
     cannot know which VFR minima apply to the leg they are on, and two pilots
     reading the same page could be applying different rules -- 1 SM and clear
@@ -1643,7 +1643,7 @@ const SITUATION=[
     states it. Nothing a participant needs has been removed, only repeated. */
  ["runway","Destination","KBBB · Rwy 23, 4,000 ft","Non-towered · AWOS · pattern 1,000 ft AGL"],
  ["alt","Alternate","KCCC · Rwy 18/36, 4,500 ft","Non-towered · AWOS · no TAF · pattern 1,000 ft AGL · northeast · diversion route stays outside the stronger shower area"],
- ["route","Airspace","Class G below 1,200 ft AGL","Class E above, and from 700 ft AGL near both fields · your 2,000 ft cruise is Class G en route"],
+ ["route","Airspace","Class G below 1,200 ft AGL","Class E above, and from 700 ft AGL near both fields · your cruise is Class G en route"],
 
  /* The document's clause "the diversion route remains outside the stronger
     shower area" was truncated away here. It existed only as chart geometry --
@@ -4168,7 +4168,13 @@ const WIZ=[
         50 minutes away, to the northeast.</p>
         <p class="wzSub">Track up. The faded line behind you is where you have come from.</p>`},
 { k:"flight", head:"The flight",
-  art:`<div class="wzTiles" id="wzTiles"></div>`,
+  /* The four tiles that stood here are gone. Destination, alternate, fuel and
+     daylight were previewed on this panel and then stated again on the
+     briefing page a screen later -- 68 words to say what the briefing says in
+     58, minutes before any of it can be used. The briefing keeps them, because
+     that is where the decision is made and a fact recalled from an earlier
+     screen is a fact some participants will not have. */
+  art:"",
   /* The interface orientation lives HERE, on a reachable panel. In the previous
      build the only copy explaining that airports are tappable and what the
      cross-section measures sat in a gate the code could never reach, so
@@ -4189,12 +4195,7 @@ const WIZ=[
         <p class="wzSub"><b>Assume you must remain within VFR limitations.</b></p>
         <p class="wzSub">On the chart, tap either airport to bring up its camera.</p>`}
 ];
-const WZ_TILES=[
- ["runway","Destination","KBBB · Rwy 23","4,000 ft · non-towered · AWOS · pattern 1,000 ft AGL · 45 min ahead"],
- ["alt","Alternate","KCCC · Rwy 18/36","4,500 ft · non-towered · AWOS · no TAF · pattern 1,000 ft AGL · 50 min northeast · route clear of the stronger showers"],
- ["fuel","Fuel","90 minutes +","at least, remaining at landing either way"],
- ["sun","Daylight","2 hours +","at least, remaining"]
-];
+
 let wizIdx=0;
 /* Every page change resets the document scroll. A panel is a page now, so
    arriving part-way down the previous one would be a navigation bug. */
@@ -4227,11 +4228,6 @@ function renderWiz(){
     fitChart(c,cw);
     drawMap(c,{weather:false,ownship:true});
   }
-  if(w.k==="flight") document.getElementById("wzTiles").innerHTML=
-    WZ_TILES.map(([ic,lab,val,sub])=>
-      `<div class="wzTile">${svg(ic,"ico")}<div class="tx">
-         <span class="lb">${esc(lab)}</span><span class="vl">${esc(val)}</span>
-         ${sub?`<span class="sb">${esc(sub)}</span>`:""}</div></div>`).join("");
   document.getElementById("wzBack").onclick=()=>{ if(wizIdx>0){wizIdx--;renderWiz();toTop();} };
   document.getElementById("wzNext").onclick=()=>{
     TEL.log("wizard_next",{panel:WIZ[wizIdx].k});
