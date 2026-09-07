@@ -2336,7 +2336,7 @@ function haloText(g,t,x,y,halo){
 // compact ceiling / visibility block.
 // KBBB sits up-track, KCCC off to the left in the track-up frame; the plots
 // push away from each other and away from the course line between them
-const STN_OFF={KBBB:{dx:30,dy:-22},KCCC:{dx:-32,dy:-18}};
+const STN_OFF={KBBB:{dx:48,dy:-22},KCCC:{dx:-46,dy:-18}};
 
 /* ---- label placement ---------------------------------------------------
    Fixed offsets are authored for a roomy desktop chart. At phone width the
@@ -2497,11 +2497,20 @@ function drawStation(g,m,X,Y){
     const cc=mk(ax,c.ay,c.rt);
     // prefer clear positions; among clear ones, the nearest to the station
     const dist=Math.hypot((cc.x0+cc.x1)/2-cx,(cc.y0+cc.y1)/2-cy);
+    /* Distance from the circle to the nearest point of the block, not to its
+       middle. Scoring on the middle let a wide block sit with its edge across
+       its own station -- measured at 4px INSIDE the circle, with the block
+       also clipping the strongest returns behind it. A block must now stand
+       clear of the symbol it belongs to; the leader line, drawn below, is what
+       ties it back. */
+    const near=Math.hypot(Math.max(cc.x0-cx,0,cx-cc.x1),
+                          Math.max(cc.y0-cy,0,cy-cc.y1));
+    const tooClose=near<R+S(10)?1:0;
     /* Crossing a leg is worse than sitting near one. The penalty is large
        enough to push a block off the line whenever any clear position exists,
        and finite so a chart with nowhere clean still places every label. */
     const onLeg=LINEKEEP.some(sg=>segHitsRect(sg,cc))?1:0;
-    const score=koArea(cc)*40+onLeg*4000+(inCanvas(cc)?0:1e9)+dist;
+    const score=koArea(cc)*40+onLeg*4000+tooClose*6000+(inCanvas(cc)?0:1e9)+dist;
     if(score<bestScore){ bestScore=score; best=cc; }
   }
   tx=best.ax; ty=best.ay; const rt=best.rt;
