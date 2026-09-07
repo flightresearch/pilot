@@ -262,6 +262,18 @@ main{padding:.55rem;display:flex;flex-direction:column;gap:.55rem;max-width:2000
    A 42vh cap plus object-fit:cover used to take the tail and undercarriage off
    the aeroplane on the one panel whose job is to show the aeroplane. */
 .wzImg{display:block;width:100%;height:auto;background:#0e141a}
+/* The mission panel takes the lower band of the en-route view: the wet
+   windscreen, the wing and the ground below the deck, with the sky and its
+   rain shaft cropped away. The panel it opens is about the personal framing,
+   and pairing "family commitment" with a visible storm would couple the two
+   before a single observation has been read.
+
+   The previous image solved that by showing a calm, dry, clear day -- which
+   traded one bias for a worse one. The pilot in this scenario is in rain below
+   an overcast with the region at 3 to 5 miles, and the first picture a
+   participant saw said otherwise, before any weather was presented. Same
+   photograph as the briefing now, honestly cropped. */
+.wzCrop{aspect-ratio:16/5.2;height:auto;object-fit:cover;object-position:50% 100%}
 /* No viewport cap on the chart: its height is computed from how far apart the
    airports land, and on a small screen that legitimately exceeds the screen.
    The panel scrolls, so a tall chart is read by scrolling rather than squinting. */
@@ -4138,7 +4150,8 @@ const WIZ=[
      commitment" to "storm ahead" before the participant has seen a single
      observation. The full forward view, shaft and all, is the stimulus in
      "Out the window" where it belongs. */
-  art:`<img class="wzImg" src="img/cockpit.jpg" alt="Forward view from the cockpit at cruise">`,
+  art:`<img class="wzImg wzCrop" src="img/otw_enroute.jpg"
+        alt="Forward view from the cockpit at cruise, rain on the windscreen">`,
   body:`<p class="wzLead">You are <b>45 minutes from KBBB</b>, en route to an
         <b>important family commitment</b>.</p>
         <div class="wzFacts">
